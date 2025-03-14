@@ -18,13 +18,13 @@ __Order__
 
 | Name | Description |
 |:---  |:--- |
-|`{order}` | "asc", "desc". If `asc`, is passed, return Response ordered by ascending order of `block_number`. If `desc`, is passed, return Response ordered by descending order of `block_number`. |
+|`{order}` | "asc", "desc"|
 
 __Limit__
 
 | Name | Description |
 |:---  |:--- |
-| `{limit}` <sup>\*optional</sup> | Maximum number of records per query. For `block_number`, the query returns `limit` number of blocks, going back from the current height while for an identifier like `block_hash` or `tx_hash` or `latest`, the result will always be unique irrespective of what limit is set.  `limit` accepts any number less than 25. Default value is 25. |
+| `{limit}` <sup>\*optional</sup> | Maximum number of records per query. Default value is 25. |
 
 __Response__
 
@@ -43,7 +43,6 @@ __Identifier__
 | Name |
 |:---  |
 | `{tx_hash}`  <sup>\*optional</sup> |
-| `{tx_number}`  <sup>\*optional</sup> |
 | `{latest}` <sup>\*optional</sup> | 
 
 __Filter__
@@ -51,7 +50,6 @@ __Filter__
 |Name |
 |:--- |
 |`{signer}` <sup>\*optional</sup> |
-|`{recipient}` <sup>\*optional</sup> |
 |`{type}` <sup>\*optional</sup> |
 |`{chain_id}`  <sup>\*optional</sup> |
 
@@ -65,7 +63,7 @@ __Limit__
 
 | Name | Description |
 |:---  |:--- |
-|`{limit}`  <sup>\*optional</sup>  | Maximum number of records per query. For `tx_number`, the query returns `limit` number of transactions, going back from the current record while for an identifier like `tx_hash` or `latest` or a set of `filters`, or a combination of `identifiers` and `filters` defined above, the result will always return a unique number of transactions identified. `limit` accepts any number less than 25. Default value is 25. |
+|`{limit}`  <sup>\*optional</sup>  | Maximum number of records per query. Default value is 25. |
 
 __Response__
 
