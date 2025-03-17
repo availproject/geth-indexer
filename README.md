@@ -12,7 +12,7 @@ __Field__
 |:--- |:---  |
 |`{current_tps}` <sup>\*One of</sup> |UTF-8|
 |`{transaction_volume}` <sup>\*One of</sup> |UTF-8|
-|`{total_transactions}` <sup>\*One of</sup> |UTF-8|
+|`{total_transfers}` <sup>\*One of</sup> |UTF-8|
 |`{successful_transfers}` <sup>\*One of</sup> |UTF-8|
 
 __Identifier__
