@@ -1,5 +1,27 @@
 # geth-indexer
 
+## Metrics
+
+### **GET** /metrics/[Field]?[Identifier]
+
+Gets current performance metrics
+
+__Field__
+
+|Name |Parameter |
+|:--- |:---  |
+|`{current_tps}` <sup>\*One of</sup> |UTF-8|
+|`{transaction_volume}` <sup>\*One of</sup> |UTF-8|
+|`{total_transactions}` <sup>\*One of</sup> |UTF-8|
+|`{successful_transfers}` <sup>\*One of</sup> |UTF-8|
+
+__Identifier__
+
+| Name |
+|:---  |
+| `{chain_id}`  <sup>\*optional</sup> |
+
+
 ## Blocks
 
 ### **GET** /blocks?[Identifier]&[Order]&[Limit]
@@ -71,24 +93,4 @@ __Response__
 |:--- |:--- |:--- | 
 |200  | OK. | A vector of transactions of length equal to `limit`. |
 
-## Metrics
-
-### **GET** /metrics/[Field]?[Identifier]
-
-Gets current performance metrics
-
-__Field__
-
-|Name |Parameter |
-|:--- |:---  |
-|`{current_tps}` <sup>\*One of</sup> |UTF-8|
-|`{transaction_volume}` <sup>\*One of</sup> |UTF-8|
-|`{total_transactions}` <sup>\*One of</sup> |UTF-8|
-|`{successful_transfers}` <sup>\*One of</sup> |UTF-8|
-
-__Identifier__
-
-| Name |
-|:---  |
-| `{chain_id}`  <sup>\*optional</sup> |
 
