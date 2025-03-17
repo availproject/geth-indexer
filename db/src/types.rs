@@ -124,6 +124,30 @@ extract! {
     }
 }
 
+extract! {
+    #[derive(Deserialize, Serialize)]
+    pub struct Parts {
+        pub all: Option<bool>,
+        pub summary_only: Option<bool>
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct TxnSummary {
+    pub hash: String,
+    pub signer: String,
+    pub status: Option<u8>,
+    pub value: u64,
+    pub timestamp: u32,
+    pub block_hash: String,
+    pub block_height: u64,
+}
+
+pub enum TxAPIResponse {
+    TxnSummary(TxnSummary),
+    Transaction(Transaction),
+}
+
 pub trait ToHexString {
     fn to_hex_string(&self) -> String;
 }

@@ -25,9 +25,10 @@ COPY --from=cacher /usr/local/cargo /usr/local/cargo
 FROM builder AS indexer-builder
 RUN cargo build --release
 
-FROM runtime AS lobby
+FROM runtime AS server
 COPY --from=indexer-builder /target/release/server /
+COPY example.toml /
 
 EXPOSE 9090
 
-ENTRYPOINT ["/server"]
+ENTRYPOINT ["/server", "--config-path", "/example.toml"]

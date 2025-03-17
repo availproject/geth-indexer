@@ -12,7 +12,7 @@ pub struct CLIArguments {
 pub struct IndexerConfig {
     pub listening_port: u16,
     pub geth_endpoints: Vec<String>,
-    pub indexer_start_heights: Vec<Option<u64>>,
+    pub indexer_start_heights: Vec<i64>,
 }
 
 impl Default for IndexerConfig {
@@ -20,7 +20,7 @@ impl Default for IndexerConfig {
         IndexerConfig {
             listening_port: 9090,
             geth_endpoints: vec!["http://139.59.46.36:22001".to_string()],
-            indexer_start_heights: vec![Some(438200)],
+            indexer_start_heights: vec![438200],
         }
     }
 }
@@ -30,7 +30,10 @@ pub(crate) fn load_config(config_path: &str) -> std::result::Result<IndexerConfi
         Ok(file_str) => {
             let ret: IndexerConfig = match toml::from_str(&file_str) {
                 Ok(r) => r,
-                Err(_) => return Err("config.toml is not a proper toml file.".to_string()),
+                Err(e) => {
+                    println!("error...loading default config {}", e);
+                    IndexerConfig::default()
+                }
             };
             Ok(ret)
         }

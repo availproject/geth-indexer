@@ -19,6 +19,7 @@ bytes = "1.8.0"
 chrono = "0.4.38"
 clap = { version = "3.2.11", features = ["derive"] }
 colored = "2.1.0"
+rayon = "1.10.0"
 redis = { version = "0.19.0" }
 deadpool = "0.12.1"
 derive_more = "1.0.0"

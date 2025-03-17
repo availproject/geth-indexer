@@ -61,6 +61,10 @@ pub(crate) async fn catch_up_blocks(
                     current_block.header.number, total_xfers, failed_xfers
                 );
 
+                // if let Err(_) = add_txns(chain_id, &current_block, internal_provider.clone()).await {
+                //     break;
+                // }
+
                 if let Ok(()) = internal_provider
                     .add_block(
                         chain_id,
@@ -83,16 +87,23 @@ pub(crate) async fn catch_up_blocks(
     }
 }
 
+// pub async fn add_txns(chain_id: &u64, block: &Block, internal_provider: Arc<InternalDataProvider>) -> Result<(), IndexerError> {
+//     let transactions: Vec<_>  = block.transactions.txns().cloned().collect();
+//     internal_provider.add_txns(chain_id.clone(), transactions.len(), transactions).await
+//         .map_err(|e| IndexerError::ProviderError(e.to_string()))?;
+
+//     Ok(())
+// }
+
 pub async fn count_native_transfers(
     block: &Block,
     external_provider: &ExternalProvider,
 ) -> Result<(u64, u64), IndexerError> {
     let mut total = 0;
     let mut failed = 0;
-
-    let tasks: FuturesUnordered<_> = block
-        .transactions
-        .txns()
+    let transactions: Vec<_> = block.transactions.txns().collect();
+    let tasks: FuturesUnordered<_> = transactions
+        .into_iter()
         .map(|tx| {
             let provider = external_provider.clone();
             let tx = tx.clone();

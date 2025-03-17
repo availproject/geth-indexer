@@ -31,9 +31,14 @@ impl Indexer {
                     continue;
                 }
             };
+            let indexer_ht = if config.indexer_start_heights[idx] == -1 {
+                None
+            } else {
+                Some(config.indexer_start_heights[idx].clone() as u64)
+            };
             chain_ids.push(chain_id);
             external_providers.insert(chain_id, provider);
-            indexer_heights.insert(chain_id, config.indexer_start_heights[idx].clone());
+            indexer_heights.insert(chain_id, indexer_ht);
         }
 
         Self {

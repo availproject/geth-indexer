@@ -32,7 +32,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 tracing = { workspace = true }
 triehash = { workspace = true }
-
+rayon = { workspace = true }
 [dev-dependencies]
 diesel = { workspace = true, features = ["postgres"] }
 diesel_migrations = { workspace = true, features = ["postgres"] }

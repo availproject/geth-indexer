@@ -12,7 +12,7 @@ const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
 #[derive(Clone)]
 pub struct DatabaseConnections {
-    pub postgres: Option<Pool<AsyncPgConnection>>,
+    pub postgres: Pool<AsyncPgConnection>,
     pub redis: Arc<Mutex<redis::Connection>>,
 }
 
@@ -88,7 +88,7 @@ impl DatabaseConnections {
 
     pub async fn init() -> Result<Self, std::io::Error> {
         Ok(Self {
-            postgres: None, //Some(Self::init_postgres().await?),
+            postgres: Self::init_postgres().await?,
             redis: Arc::new(Mutex::new(Self::init_redis())),
         })
     }

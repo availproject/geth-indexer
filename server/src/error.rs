@@ -27,8 +27,9 @@ pub enum IndexerError {
 
     #[error("Redis Error: {0}")]
     RedisError(#[from] RedisError),
-    // #[error("External Provider Error")]
-    // ProviderError(String),
+    
+    #[error("External Provider Error")]
+    ProviderError(String),
 }
 
 impl warp::reject::Reject for IndexerError {}
@@ -43,7 +44,7 @@ pub(crate) async fn handle_rejection(
         Some(IndexerError::ReqwestError(_)) => (StatusCode::BAD_REQUEST, "Reqwest Error"),
         Some(IndexerError::TokioJoinError(_)) => (StatusCode::BAD_REQUEST, "Tokio Join Error"),
         Some(IndexerError::RedisError(_)) => (StatusCode::BAD_REQUEST, "Redis Error"),
-        //  Some(IndexerError::ProviderError(_)) => (StatusCode::BAD_REQUEST, "External Provider Error"),
+        Some(IndexerError::ProviderError(_)) => (StatusCode::BAD_REQUEST, "External Provider Error"),
         None => (StatusCode::BAD_REQUEST, "Unknown Error Code"),
     };
 
