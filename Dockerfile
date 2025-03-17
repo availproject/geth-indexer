@@ -26,8 +26,8 @@ FROM builder AS indexer-builder
 RUN cargo build --release
 
 FROM runtime AS lobby
-COPY --from=indexer-builder /target/release/indexer /
+COPY --from=indexer-builder /target/release/server /
 
 EXPOSE 9090
 
-ENTRYPOINT ["/indexer"]
+ENTRYPOINT ["/server"]
