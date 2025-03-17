@@ -27,6 +27,7 @@ impl Server {
         let warp_serve = warp::serve(
             index_route()
                 .or(metrics(self.internal_data_provider.clone()))
+                .or(transactions(self.internal_data_provider.clone()))
                 .recover(handle_rejection)
                 .with(warp::cors().allow_any_origin()),
         );

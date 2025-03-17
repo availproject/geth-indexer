@@ -111,7 +111,8 @@ extract! {
     pub struct TxFilter {
         pub sender: Option<String>,
         pub status: Option<i16>,
-        pub recipient: Option<String>
+        pub recipient: Option<String>,
+        pub chain_id: Option<u64>
     }
 }
 
@@ -137,12 +138,11 @@ pub struct TxnSummary {
     pub hash: String,
     pub signer: String,
     pub status: Option<u8>,
-    pub value: u64,
-    pub timestamp: u32,
-    pub block_hash: String,
+    pub value: String,
     pub block_height: u64,
 }
 
+#[derive(Deserialize, Serialize)]
 pub enum TxAPIResponse {
     TxnSummary(TxnSummary),
     Transaction(Transaction),

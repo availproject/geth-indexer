@@ -1,5 +1,5 @@
-use alloy::rpc::types::eth::Transaction;
-use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
+use alloy::rpc::types::eth::Transaction as AlloyTx;
+use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use rayon::prelude::*;
 use redis::RedisResult;
@@ -8,8 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::schema::transactions::dsl::{
     self as transactions_schema_types, transactions as transactions_schema,
 };
-use crate::schema::chains::dsl::chains as chains_schema;
-use crate::{Chain, TxnSummary};
+use crate::{Parts, TxFilter, TxnSummary};
 use crate::Stride;
 use crate::TxAPIResponse;
 use crate::TxIdentifier;
@@ -29,141 +28,87 @@ impl InternalDataProvider {
         })
     }
 
-    // pub async fn get_txs(
-    //     &mut self,
-    //     chain_id: &u64,
-    //     filter: TxIdentifier,
-    // ) -> Result<Vec<TxAPIResponse>, std::io::Error> {
-    //     let mut conn = self
-    //             .dbc
-    //             .postgres
-    //             .get()
-    //             .await
-    //             .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
+    pub async fn get_txs(
+        &self,
+        identifier: TxIdentifier,
+        filter: TxFilter,
+        parts: Parts,
+    ) -> Result<Vec<TxAPIResponse>, std::io::Error> {
+        let mut conn = self
+                .dbc
+                .postgres
+                .get()
+                .await
+                .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
         
-    //     let mut query = transactions_schema.into_boxed();        
-    //     query = query.order(transactions_schema_types::block_number.desc());
-       
-    //     if let Some(tx_hash) = filter.tx_hash.as_ref() {
-    //         query = query.filter(transactions_schema_types::transaction_hash.eq(tx_hash));
-    //     }
-        
-    //     let result: Vec<TransactionModel> = query
-    //         .limit(25_i64)
-    //         .offset(
-    //             (filter.page_idx.unwrap_or_default() * 10)
-    //                 as i64,
-    //         )
-    //         .select((
-    //             TransactionModel::as_select(),
-    //         ))
-    //         .load(&mut conn)
-    //         .await
-    //         .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
+        let mut query = transactions_schema.into_boxed();        
+        query = query.order(transactions_schema_types::block_number.desc());
+        if let Some(chain_id) = filter.chain_id.as_ref() {
+            query = query.filter(transactions_schema_types::chain_id.eq(chain_id.clone() as i64));
+        }
+        if let Some(tx_hash) = identifier.tx_hash.as_ref() {
+            query = query.filter(transactions_schema_types::transaction_hash.eq(tx_hash));
+        }
 
-    //     let mut summaries = Vec::new();
-    //     for (tx, receipt) in result {
-    //         let (node_name, block_number, timestamp) =
-    //             get_additional_tx_info(&mut self.postgres, &tx).await?;
-    //         let transaction: AlloyTransaction = tx.into();
-    //         let txn_summary = TxnSummary {
-    //             timestamp,
-    //             hash: transaction.hash,
-    //             signer: transaction,
-    //             block_number,
-    //             from: Some(Address(*transaction.from)),
-    //             to: transaction.to,
-    //             receipt: ReceiptSummary {
-    //                 gas_used: Some(receipt.gas_used.parse()?),
-    //                 status: receipt.transaction_status.parse()?,
-    //                 logs: log_map.remove(&transaction.hash).unwrap_or_default(),
-    //             },
-    //             max_fee_per_gas: transaction.max_fee_per_gas.map(|fee| U256::from(fee)),
-    //         };
+        let result: Vec<TransactionModel> = query
+            .limit(25_i64)
+            .offset(
+                (identifier.page_idx.unwrap_or_default() * 10)
+                    as i64,
+            )
+            .select(TransactionModel::as_select())
+            .load(&mut conn)
+            .await
+            .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
 
-    //         summaries.push(txn_summary);
-    //     }
+        let mut results = Vec::new();
+        for tx in result {
+            if let Some(_) = parts.all {
+                let tx: AlloyTx = tx.into();
+                results.push(TxAPIResponse::Transaction(tx));
+            } else {
+                let txn_summary = TxnSummary {
+                    hash: tx.transaction_hash,
+                    signer: tx._from,
+                    status: Some(1),
+                    value: tx.value,
+                    block_height: tx.block_number.unwrap() as u64,
+                };
+                results.push(TxAPIResponse::TxnSummary(txn_summary));
+            };
+        }
 
-    //     Ok(summaries)
-    // }
+        Ok(results)
+    }
 
-    // pub async fn get_txns(
-    //     &self,
-    //     chain_id: u64,
-    //     tx_identifier: TxIdentifier,
-    // ) -> Result<(), std::io::Error> {
-    //     let tx_response = {
-    //         let mut conn = self
-    //             .dbc
-    //             .postgres
-    //             .get()
-    //             .await
-    //             .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
+    pub async fn add_txns(
+        &self,
+        chain_id: u64,
+        tx_count: usize,
+        transactions: Vec<AlloyTx>,
+    ) -> Result<(), std::io::Error> {
+        let txns: Vec<TransactionModel> = transactions
+            .par_iter()
+            .map(|transaction| TransactionModel::from(chain_id, transaction))
+            .collect();
 
-    //         let result = if tx_identifier.tx_hash.is_some() {
-    //             transactions_schema
-    //                 .filter(transactions_schema_types::transaction_hash.eq(tx_hash.to_hex_string()))
-    //                 .filter(transactions_schema_types::node_id.eq_any(&self.node_ids))
-    //                 .select(TransactionModel::as_select())
-    //                 .load(self.postgres.get_conn().await?.as_mut())
-    //                 .await?
-    //         }
+        {
+            let mut conn = self
+                .dbc
+                .postgres
+                .get()
+                .await
+                .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
 
-    //         let result = transactions_schema
-    //             .filter(transactions_schema_types::transaction_hash.eq(tx_hash.to_hex_string()))
-    //             .filter(transactions_schema_types::node_id.eq_any(&self.node_ids))
-    //             .select(TransactionModel::as_select())
-    //             .load(self.postgres.get_conn().await?.as_mut())
-    //             .await?;
+            diesel::insert_into(transactions_schema)
+                .values(&txns)
+                .execute(&mut conn)
+                .await
+                .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
+        }
 
-    
-
-    //         diesel::insert_into(transactions_schema)
-    //             .values(&txns)
-    //             .execute(&mut conn)
-    //             .await
-    //             .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
-    //     }
-
-    //     Ok(())
-    // }
-
-
-
-    // pub async fn add_txns(
-    //     &self,
-    //     chain_id: u64,
-    //     tx_count: usize,
-    //     transactions: Vec<Transaction>,
-    // ) -> Result<(), std::io::Error> {
-    //     let txns: Vec<TransactionModel> = transactions
-    //         .par_iter()
-    //         .map(|transaction| TransactionModel::from(chain_id, transaction))
-    //         .collect();
-
-    //     {
-    //         let mut conn = self
-    //             .dbc
-    //             .postgres
-    //             .get()
-    //             .await
-    //             .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
-
-    //         diesel::insert_into(chains_schema)
-    //             .values(&Chain { chain_id: chain_id as i64, latest_tps: tx_count as i64 })
-    //             .execute(&mut conn)
-    //             .await
-    //             .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
-
-    //         diesel::insert_into(transactions_schema)
-    //             .values(&txns)
-    //             .execute(&mut conn)
-    //             .await
-    //             .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
-    //     }
-
-    //     Ok(())
-    // }
+        Ok(())
+    }
 
     pub async fn add_block(
         &self,
