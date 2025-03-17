@@ -19,7 +19,7 @@ impl std::str::FromStr for Metric {
         match input {
             "current_tps" => Ok(Metric::CurrentTPS),
             "transaction_volume" => Ok(Metric::TransactionVolume),
-            "total_transactions" => Ok(Metric::TotalTransactions),
+            "total_transfers" => Ok(Metric::TotalTransactions),
             "successful_transfers" => Ok(Metric::SuccessfulTransfers),
             _ => Ok(Metric::CurrentTPS),
         }
