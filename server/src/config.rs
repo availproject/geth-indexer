@@ -12,6 +12,7 @@ pub struct CLIArguments {
 pub struct IndexerConfig {
     pub listening_port: u16,
     pub geth_endpoints: Vec<String>,
+    pub indexer_start_heights: Vec<Option<u64>>,
 }
 
 impl Default for IndexerConfig {
@@ -23,6 +24,7 @@ impl Default for IndexerConfig {
                 "http://128.199.25.233:22001".to_string(),
                 "http://139.59.30.161:22001".to_string(),
             ],
+            indexer_start_heights: vec![None, None, None],
         }
     }
 }

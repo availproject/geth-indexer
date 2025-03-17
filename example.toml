@@ -1,0 +1,13 @@
+[listening]
+port = 9090
+
+[geth]
+endpoints = [
+    "http://139.59.46.36:22001",
+    "http://128.199.25.233:22001",
+    "http://139.59.30.161:22001"
+]
+
+[indexer]
+start_heights = [100, null, 250] 
+

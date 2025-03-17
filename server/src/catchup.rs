@@ -12,15 +12,19 @@ use crate::error::IndexerError;
 use crate::indexer::ExternalProvider;
 
 pub(crate) async fn catch_up_blocks(
+    indexer_start_height: Option<u64>,
     internal_provider: Arc<InternalDataProvider>,
     external_provider: ExternalProvider,
     chain_id: &u64,
 ) -> Result<(), IndexerError> {
-    let (mut indexer_block_height, mut query_param) =
+    let (mut indexer_block_height, mut query_param) = if let Some(ht) = indexer_start_height {
+        (ht, BlockNumberOrTag::Number(ht + 1))
+    } else {
         match internal_provider.get_latest_height(chain_id).await {
             Ok(ht) => (ht, BlockNumberOrTag::Number(ht + 1)),
             Err(_) => (0, BlockNumberOrTag::Number(0)),
-        };
+        }
+    };
 
     loop {
         let mut validator_max_height = match external_provider.get_block_number().await {

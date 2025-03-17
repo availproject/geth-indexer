@@ -6,6 +6,7 @@ use diesel_async::{
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use std::{env, sync::Arc};
 use tokio::sync::Mutex;
+use tracing::info;
 
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
@@ -18,8 +19,10 @@ pub struct DatabaseConnections {
 impl DatabaseConnections {
     fn run_migrations(db_url: &str) -> Result<(), std::io::Error> {
         let mut conn = PgConnection::establish(db_url).expect("Can't connect to database");
-        conn.run_pending_migrations(MIGRATIONS)
-            .expect("Can't run migrations");
+        if let Ok(_) = conn.run_pending_migrations(MIGRATIONS) {
+            info!("ran migration successfully");
+        }
+
         Ok(())
     }
 
