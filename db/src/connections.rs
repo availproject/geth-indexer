@@ -46,8 +46,8 @@ impl DatabaseConnections {
 
     pub fn init_redis() -> redis::Connection {
         let redis_host_name: String =
-            env::var("REDIS_HOSTNAME").expect("missing environment variable REDIS_HOSTNAME");
-        let redis_password = env::var("REDIS_PASSWORD").unwrap_or_default();
+            env::var("REDIS_HOSTNAME").unwrap_or("localhost:6379".to_string());
+        let redis_password = env::var("REDIS_PASSWORD").unwrap_or("redis".to_string());
 
         let uri_scheme = match env::var("IS_TLS") {
             Ok(_) => "rediss",
@@ -64,7 +64,7 @@ impl DatabaseConnections {
 
     pub async fn init() -> Result<Self, std::io::Error> {
         Ok(Self {
-            postgres: None,
+            postgres: Some(Self::init_postgres().await?),
             redis: Arc::new(Mutex::new(Self::init_redis())),
         })
     }

@@ -30,7 +30,7 @@ services:
     restart: always
     environment:
       - DATABASE_URL=postgres://postgres:password@db:5432?sslmode=disable
-      - REDIS_PASSWORD=mysecurepassword
+      - REDIS_PASSWORD=redis
       - REDIS_HOSTNAME=redis:6379
     depends_on:
       - db
@@ -40,10 +40,9 @@ services:
       - indexer_network
   redis:
     image: "redis:alpine"
-    command: redis-server --save "" --appendonly no --requirepass mysecurepassword --maxmemory 500mb --maxmemory-policy volatile-ttl
+    command: redis-server --save "" --appendonly no --requirepass redis --maxmemory 500mb --maxmemory-policy volatile-ttl
     environment:
-      - REDIS_PASSWORD=mysecurepassword
-      - REDIS_HOSTNAME=localhost:6379
+      - REDIS_PASSWORD=redis
     ports:
       - 6379:6379
     networks:

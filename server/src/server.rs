@@ -19,29 +19,25 @@ impl Server {
 
     pub async fn start(self) -> Result<(), std::io::Error> {
         let listening_port = self.config.listening_port.clone();
-        let indexer = Indexer::new(self.config, self.internal_data_provider.clone()).await;
+        let _ = Indexer::new(self.config, self.internal_data_provider.clone()).await.run().await;
 
-        tokio::spawn(async move {
-            let warp_serve = warp::serve(
-                index_route()
-                    .or(metrics(self.internal_data_provider.clone()))
-                    .recover(handle_rejection)
-                    .with(warp::cors().allow_any_origin()),
-            );
+        let warp_serve = warp::serve(
+            index_route()
+                .or(metrics(self.internal_data_provider.clone()))
+                .recover(handle_rejection)
+                .with(warp::cors().allow_any_origin()),
+        );
 
-            let (_, server) = warp_serve.bind_with_graceful_shutdown(
-                ([0, 0, 0, 0], listening_port),
-                async move {
-                    tokio::signal::ctrl_c()
-                        .await
-                        .expect("failed to listen to shutdown signal");
-                },
-            );
+        let (_, server) = warp_serve.bind_with_graceful_shutdown(
+            ([0, 0, 0, 0], listening_port),
+            async move {
+                tokio::signal::ctrl_c()
+                    .await
+                    .expect("failed to listen to shutdown signal");
+            },
+        );
 
-            server.await;
-        });
-
-        indexer.run().await;
+        server.await;
 
         Ok(())
     }

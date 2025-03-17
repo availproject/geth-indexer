@@ -6,6 +6,7 @@ use async_std::task::sleep;
 use db::provider::InternalDataProvider;
 use std::sync::Arc;
 use std::time;
+use tracing::info;
 
 use crate::error::IndexerError;
 use crate::indexer::ExternalProvider;
@@ -46,7 +47,7 @@ pub(crate) async fn catch_up_blocks(
                         Ok((total_xfers, successful_xfers)) => (total_xfers, successful_xfers),
                         Err(_) => break,
                     };
-
+                info!("received block at {}", current_block.header.number);
                 if let Ok(()) = internal_provider
                     .add_block(
                         chain_id,

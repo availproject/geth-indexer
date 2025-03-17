@@ -42,7 +42,6 @@ impl Indexer {
             if let Some(external_provider) = self.external_providers.get(chain_id) {
                 let external_provider = external_provider.clone();
                 let chain_id = chain_id.clone();
-
                 tokio::spawn(async move {
                     let _ = catch_up_blocks(internal_provider, external_provider, &chain_id).await;
                 });
