@@ -10,7 +10,6 @@ pub struct InternalDataProvider {
     pub dbc: DatabaseConnections,
 }
 
-
 impl InternalDataProvider {
     pub async fn new() -> Result<Self, std::io::Error> {
         Ok(InternalDataProvider {
@@ -69,26 +68,11 @@ impl InternalDataProvider {
 
     pub async fn total_xfers_last_day(&self, identifier: ChainId) -> RedisResult<u64> {
         let tps = {
-            let now_duration = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("SystemTime before UNIX EPOCH!");
-
-            let now_seconds = now_duration.as_secs() as i64;
-
             let mut redis_conn = self.dbc.redis.lock().await;
             let tps = if let Some(chain_id) = identifier.chain_id {
-                get_successful_xfers_in_range(
-                    &chain_id,
-                    now_seconds.saturating_sub(86400),
-                    now_seconds,
-                    &mut redis_conn,
-                )?
+                get_successful_xfers_in_range(&chain_id, 86400, &mut redis_conn)?
             } else {
-                get_all_chains_success_xfers_in_range(
-                    now_seconds.saturating_sub(86400),
-                    now_seconds,
-                    &mut redis_conn,
-                )?
+                get_all_chains_success_xfers_in_range(86400, &mut redis_conn)?
             };
 
             tps as u64
@@ -99,25 +83,11 @@ impl InternalDataProvider {
 
     pub async fn successful_xfers_last_day(&self, identifier: ChainId) -> RedisResult<u64> {
         let xfers = {
-            let now_duration = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("SystemTime before UNIX EPOCH!");
-
-            let now_seconds = now_duration.as_secs() as i64;
             let mut redis_conn = self.dbc.redis.lock().await;
             let xfers = if let Some(chain_id) = identifier.chain_id {
-                get_successful_xfers_in_range(
-                    &chain_id,
-                    now_seconds.saturating_sub(86400),
-                    now_seconds,
-                    &mut redis_conn,
-                ).unwrap_or(0)
+                get_successful_xfers_in_range(&chain_id, 86400, &mut redis_conn).unwrap_or(0)
             } else {
-                get_all_chains_success_xfers_in_range(
-                    now_seconds.saturating_sub(86400),
-                    now_seconds,
-                    &mut redis_conn,
-                ).unwrap_or(0)
+                get_all_chains_success_xfers_in_range(86400, &mut redis_conn).unwrap_or(0)
             };
 
             xfers as u64
@@ -135,32 +105,22 @@ impl InternalDataProvider {
                 .expect("SystemTime before UNIX EPOCH!");
 
             let now_seconds = now_duration.as_secs() as i64;
-
             let mut redis_conn = self.dbc.redis.lock().await;
             if let Some(chain_id) = identifier.chain_id {
                 for i in 1..20 {
-                    let success = get_successful_xfers_in_range(
-                        &chain_id,
-                        now_seconds.saturating_sub(i),
-                        now_seconds,
-                        &mut redis_conn,
-                    ).unwrap_or(0);
+                    let success =
+                        get_successful_xfers_in_range(&chain_id, i, &mut redis_conn).unwrap_or(0);
 
                     tx_response.push(TxResponse {
                         successful_txns: success as u64,
                         total_txns: success as u64,
-                        timestamp: unix_ms_to_ist(now_seconds.saturating_sub(i)),
+                        timestamp: unix_ms_to_ist(now_seconds.saturating_sub(86400)),
                     })
                 }
             } else {
                 for i in 1..20 {
-                    let success = get_all_chains_success_xfers_in_range(
-                        now_seconds.saturating_sub(i),
-                        now_seconds,
-                        &mut redis_conn,
-                    ).unwrap_or(0);
-
-                    println!("success {}", success);
+                    let success =
+                        get_all_chains_success_xfers_in_range(i, &mut redis_conn).unwrap_or(0);
 
                     tx_response.push(TxResponse {
                         successful_txns: success as u64,
