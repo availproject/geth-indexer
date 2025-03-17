@@ -6,7 +6,7 @@ use diesel_async::{
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use std::{env, sync::Arc};
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{error, info};
 
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
@@ -18,12 +18,31 @@ pub struct DatabaseConnections {
 
 impl DatabaseConnections {
     fn run_migrations(db_url: &str) -> Result<(), std::io::Error> {
-        let mut conn = PgConnection::establish(db_url).expect("Can't connect to database");
-        if let Ok(_) = conn.run_pending_migrations(MIGRATIONS) {
-            info!("ran migration successfully");
+        for attempt in 1..=MAX_RETRIES {
+            match PgConnection::establish(db_url) {
+                Ok(mut conn) => {
+                    if let Err(e) = conn.run_pending_migrations(MIGRATIONS) {
+                        error!(
+                            "Migration failed on attempt {}/{}: {}",
+                            attempt, MAX_RETRIES, e
+                        );
+                    } else {
+                        info!("Ran migration successfully");
+                        return Ok(());
+                    }
+                }
+                Err(e) => error!(
+                    "Database connection failed on attempt {}/{}: {}",
+                    attempt, MAX_RETRIES, e
+                ),
+            }
         }
 
-        Ok(())
+        error!("Migration failed after {} attempts", MAX_RETRIES);
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "Migration failed after multiple attempts",
+        ))
     }
 
     pub fn postgres_pool(db_url: String) -> Pool<AsyncPgConnection> {
@@ -72,3 +91,5 @@ impl DatabaseConnections {
         })
     }
 }
+
+const MAX_RETRIES: u32 = 5;
