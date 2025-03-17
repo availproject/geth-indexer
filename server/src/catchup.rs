@@ -48,22 +48,24 @@ pub(crate) async fn catch_up_blocks(
             validator_max_height = std::cmp::max(validator_max_height, current_block.header.number);
             if indexer_block_height == 0 || indexer_block_height != validator_max_height {
                 indexer_block_height = current_block.header.number;
-                let (total_xfers, failed_xfers) =
-                    match count_native_transfers(&current_block, &external_provider).await {
-                        Ok((total_xfers, failed_xfers)) => (total_xfers, failed_xfers),
-                        Err(_) => {
-                            break;
-                        }
-                    };
+                let (total_xfers, failed_xfers) = match process_block(
+                    &current_block,
+                    chain_id,
+                    &external_provider,
+                    internal_provider.clone(),
+                )
+                .await
+                {
+                    Ok((total_xfers, failed_xfers)) => (total_xfers, failed_xfers),
+                    Err(_) => {
+                        break;
+                    }
+                };
 
                 info!(
-                    "current height {} total_xfers {} failed_xfers {}",
-                    current_block.header.number, total_xfers, failed_xfers
+                    "current height {} validator height {}, total_xfers {} failed_xfers {}",
+                    current_block.header.number, validator_max_height, total_xfers, failed_xfers
                 );
-
-                if let Err(_) = add_txns(chain_id, &current_block, internal_provider.clone()).await {
-                    break;
-                }
 
                 if let Ok(()) = internal_provider
                     .add_block(
@@ -87,23 +89,17 @@ pub(crate) async fn catch_up_blocks(
     }
 }
 
-pub async fn add_txns(chain_id: &u64, block: &Block, internal_provider: Arc<InternalDataProvider>) -> Result<(), IndexerError> {
-    let transactions: Vec<_>  = block.transactions.txns().cloned().collect();
-    internal_provider.add_txns(chain_id.clone(), transactions.len(), transactions).await
-        .map_err(|e| IndexerError::ProviderError(e.to_string()))?;
-
-    Ok(())
-}
-
-pub async fn count_native_transfers(
+pub async fn process_block(
     block: &Block,
+    chain_id: &u64,
     external_provider: &ExternalProvider,
+    internal_provider: Arc<InternalDataProvider>,
 ) -> Result<(u64, u64), IndexerError> {
     let mut total = 0;
     let mut failed = 0;
-    let transactions: Vec<_> = block.transactions.txns().collect();
+    let transactions: Vec<_> = block.transactions.txns().cloned().collect();
     let tasks: FuturesUnordered<_> = transactions
-        .into_iter()
+        .iter()
         .map(|tx| {
             let provider = external_provider.clone();
             let tx = tx.clone();
@@ -132,6 +128,14 @@ pub async fn count_native_transfers(
             failed += f;
         }
     }
+
+    let chain_id = chain_id.clone();
+    tokio::spawn(async move {
+        internal_provider
+            .add_txns(chain_id, transactions.len(), transactions)
+            .await
+            .expect("Irrecoverable Error: Could not view txns");
+    });
 
     Ok((total, failed))
 }

@@ -19,7 +19,7 @@ $$ LANGUAGE plpgsql;
 
 CREATE TABLE chains (
     chain_id BIGINT NOT NULL,
-    current_tps BIGINT,
+    latest_tps BIGINT,
     PRIMARY KEY (chain_id)
 );
 

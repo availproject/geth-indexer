@@ -26,31 +26,26 @@ pub(crate) fn transactions(
     ) -> Result<impl warp::Reply, warp::Rejection> {
         let window = limit.limit.unwrap_or(MAX_WINDOW_SIZE);
         if window == 0 || window > MAX_WINDOW_SIZE {
-            return Err(warp::reject::custom(
-                IndexerError::ProviderError("failed to deserialize".to_string()),
-            ));
+            return Err(warp::reject::custom(IndexerError::ProviderError(
+                "failed to deserialize".to_string(),
+            )));
         }
 
-        if (tx_identifier.field_count() > 1) || (parts.field_count() > 1)
-        {
-            return Err(warp::reject::custom(
-                IndexerError::ProviderError("failed to deserialize".to_string()),
-            ));
+        if (tx_identifier.field_count() > 1) || (parts.field_count() > 1) {
+            return Err(warp::reject::custom(IndexerError::ProviderError(
+                "failed to deserialize".to_string(),
+            )));
         }
 
         let tx_responses = match internal_provider
-            .get_txs(
-                tx_identifier,
-                tx_filter,
-                parts,
-            )
+            .get_txs(tx_identifier, tx_filter, parts, limit)
             .await
         {
             Ok(transactions) => transactions,
             Err(_) => {
-                return Err(warp::reject::custom(
-                    IndexerError::ProviderError("failed to get response from db".to_string()),
-                ));
+                return Err(warp::reject::custom(IndexerError::ProviderError(
+                    "failed to get response from db".to_string(),
+                )));
             }
         };
 
@@ -66,7 +61,13 @@ pub(crate) fn transactions(
             .and(warp::query::<Limit>())
             .and(warp::path::end())
             .and_then(move |tx_identifier, tx_filter, parts, limit| {
-                get_transactions(limit, parts, tx_identifier, tx_filter, internal_provider.clone())
+                get_transactions(
+                    limit,
+                    parts,
+                    tx_identifier,
+                    tx_filter,
+                    internal_provider.clone(),
+                )
             })
     };
 

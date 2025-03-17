@@ -1,20 +1,20 @@
+use crate::schema::chains::dsl::chains as chains_schema;
+use crate::schema::transactions::dsl::{
+    self as transactions_schema_types, transactions as transactions_schema,
+};
+use crate::TxAPIResponse;
+use crate::TxIdentifier;
+use crate::TxResponse;
+use crate::{cache::*, ChainId, DatabaseConnections};
+use crate::{unix_ms_to_ist, TransactionModel};
+use crate::{Chain, Parts, TxFilter, TxnSummary};
+use crate::{Limit, Stride};
 use alloy::rpc::types::eth::Transaction as AlloyTx;
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use rayon::prelude::*;
 use redis::RedisResult;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-use crate::schema::transactions::dsl::{
-    self as transactions_schema_types, transactions as transactions_schema,
-};
-use crate::{Parts, TxFilter, TxnSummary};
-use crate::Stride;
-use crate::TxAPIResponse;
-use crate::TxIdentifier;
-use crate::TxResponse;
-use crate::{cache::*, ChainId, DatabaseConnections};
-use crate::{unix_ms_to_ist, TransactionModel};
 
 #[derive(Clone)]
 pub struct InternalDataProvider {
@@ -33,15 +33,16 @@ impl InternalDataProvider {
         identifier: TxIdentifier,
         filter: TxFilter,
         parts: Parts,
+        limit: Limit,
     ) -> Result<Vec<TxAPIResponse>, std::io::Error> {
         let mut conn = self
-                .dbc
-                .postgres
-                .get()
-                .await
-                .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
-        
-        let mut query = transactions_schema.into_boxed();        
+            .dbc
+            .postgres
+            .get()
+            .await
+            .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
+
+        let mut query = transactions_schema.into_boxed();
         query = query.order(transactions_schema_types::block_number.desc());
         if let Some(chain_id) = filter.chain_id.as_ref() {
             query = query.filter(transactions_schema_types::chain_id.eq(chain_id.clone() as i64));
@@ -51,11 +52,8 @@ impl InternalDataProvider {
         }
 
         let result: Vec<TransactionModel> = query
-            .limit(25_i64)
-            .offset(
-                (identifier.page_idx.unwrap_or_default() * 10)
-                    as i64,
-            )
+            .limit(limit.limit.unwrap_or(10) as i64)
+            .offset((identifier.page_idx.unwrap_or(0) * limit.limit.unwrap_or(10)) as i64)
             .select(TransactionModel::as_select())
             .load(&mut conn)
             .await
@@ -100,8 +98,25 @@ impl InternalDataProvider {
                 .await
                 .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
 
+            diesel::insert_into(chains_schema)
+                .values(&Chain {
+                    chain_id: chain_id as i64,
+                    latest_tps: tx_count as i64,
+                })
+                .on_conflict(crate::schema::chains::chain_id)
+                .do_update()
+                .set(crate::schema::chains::latest_tps.eq(tx_count as i64))
+                .execute(&mut conn)
+                .await
+                .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
+
             diesel::insert_into(transactions_schema)
                 .values(&txns)
+                .on_conflict((
+                    crate::schema::transactions::chain_id,
+                    crate::schema::transactions::transaction_hash,
+                ))
+                .do_nothing()
                 .execute(&mut conn)
                 .await
                 .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
