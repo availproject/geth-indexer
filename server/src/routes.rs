@@ -21,6 +21,7 @@ pub(crate) fn metrics(
         metric: String,
         provider: Arc<InternalDataProvider>,
         identifier: ChainId,
+        stride: Stride,
     ) -> Result<impl warp::Reply, warp::Rejection> {
         let performance_metric: Metric = match Metric::from_str(&metric) {
             Ok(f) => f,
@@ -59,6 +60,14 @@ pub(crate) fn metrics(
                     .map_err(|e| IndexerError::RedisError(e))?;
                 Ok(warp::reply::json(&successful_xfers))
             }
+            Metric::LiveTPS => {
+                let tps = provider
+                    .live_tps(identifier, stride)
+                    .await
+                    .map_err(|e| IndexerError::RedisError(e))?;
+
+                Ok(warp::reply::json(&tps))
+            }
         }
     }
 
@@ -66,9 +75,10 @@ pub(crate) fn metrics(
         warp::path!("metrics" / String)
             .and(warp::get())
             .and(warp::query::<ChainId>())
+            .and(warp::query::<Stride>())
             .and(warp::path::end())
-            .and_then(move |metric, identifier| {
-                get_metrics(metric, Arc::clone(&provider), identifier)
+            .and_then(move |metric, identifier, stride| {
+                get_metrics(metric, Arc::clone(&provider), identifier, stride)
             })
     };
 

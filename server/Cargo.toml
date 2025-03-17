@@ -25,4 +25,5 @@ tokio = { workspace = true, features = [
 ] }
 tower-http = { workspace = true, features = ["cors", "trace", "timeout"] }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 db = { path = "../db" }

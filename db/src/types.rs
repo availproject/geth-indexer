@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone)]
 pub enum Metric {
     CurrentTPS,
+    LiveTPS,
     TransactionVolume,
     TotalTransactions,
     SuccessfulTransfers,
@@ -25,6 +26,7 @@ impl std::str::FromStr for Metric {
     fn from_str(input: &str) -> Result<Metric, Self::Err> {
         match input {
             "current_tps" => Ok(Metric::CurrentTPS),
+            "live_tps" => Ok(Metric::LiveTPS),
             "transaction_volume" => Ok(Metric::TransactionVolume),
             "total_transfers" => Ok(Metric::TotalTransactions),
             "successful_transfers" => Ok(Metric::SuccessfulTransfers),
@@ -92,6 +94,11 @@ extract! {
     pub struct ChainId {
         pub chain_id: Option<u64>
     }
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct Stride {
+    pub stride: Option<u64>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]

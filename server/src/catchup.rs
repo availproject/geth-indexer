@@ -8,6 +8,7 @@ use futures::stream::{FuturesUnordered, StreamExt};
 use std::sync::Arc;
 use std::time;
 use tokio::task;
+use tracing::info;
 
 use crate::error::IndexerError;
 use crate::indexer::ExternalProvider;
@@ -54,6 +55,11 @@ pub(crate) async fn catch_up_blocks(
                             break;
                         }
                     };
+
+                info!(
+                    "current height {} total_xfers {} failed_xfers {}",
+                    current_block.header.number, total_xfers, failed_xfers
+                );
 
                 if let Ok(()) = internal_provider
                     .add_block(

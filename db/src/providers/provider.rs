@@ -2,6 +2,7 @@ use redis::RedisResult;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::unix_ms_to_ist;
+use crate::Stride;
 use crate::TxResponse;
 use crate::{cache::*, ChainId, DatabaseConnections};
 
@@ -50,6 +51,19 @@ impl InternalDataProvider {
         };
 
         height
+    }
+
+    pub async fn live_tps(&self, identifier: ChainId, stride: Stride) -> RedisResult<Vec<u64>> {
+        let tps = {
+            let mut redis_conn = self.dbc.redis.lock().await;
+            if let Some(chain_id) = identifier.chain_id {
+                get_live_tps(&chain_id, stride, &mut redis_conn)?
+            } else {
+                get_all_chains_live_tps_in_range(stride, &mut redis_conn)?
+            }
+        };
+
+        Ok(tps)
     }
 
     pub async fn current_tps(&self, identifier: ChainId) -> RedisResult<u64> {
