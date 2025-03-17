@@ -134,7 +134,7 @@ pub async fn process_block(
         internal_provider
             .add_txns(chain_id, transactions.len(), transactions)
             .await
-            .expect("Irrecoverable Error: Could not view txns");
+            .expect("Irrecoverable Error: Could not store txns");
     });
 
     Ok((total, failed))
