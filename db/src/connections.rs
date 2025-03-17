@@ -11,7 +11,7 @@ const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
 #[derive(Clone)]
 pub struct DatabaseConnections {
-    pub postgres: Pool<AsyncPgConnection>,
+    pub postgres: Option<Pool<AsyncPgConnection>>,
     pub redis: Arc<Mutex<redis::Connection>>,
 }
 
@@ -36,14 +36,7 @@ impl DatabaseConnections {
     }
 
     async fn init_postgres() -> Result<Pool<AsyncPgConnection>, std::io::Error> {
-        let mut db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-        let postgres_user = env::var("POSTGRES_USER").expect("POSTGRES_USER must be set");
-        let postgres_password =
-            env::var("POSTGRES_PASSWORD").expect("POSTGRES_PASSWORD must be set");
-
-        db_url = db_url.replace("$(POSTGRES_USER)", &postgres_user);
-        db_url = db_url.replace("$(POSTGRES_PASSWORD)", &postgres_password);
-
+        let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
         let db_url_pool = db_url.clone();
         tokio::task::spawn_blocking(move || Self::run_migrations(&db_url.clone())).await??;
         let pool = Self::postgres_pool(db_url_pool);
@@ -71,7 +64,7 @@ impl DatabaseConnections {
 
     pub async fn init() -> Result<Self, std::io::Error> {
         Ok(Self {
-            postgres: Self::init_postgres().await?,
+            postgres: None,
             redis: Arc::new(Mutex::new(Self::init_redis())),
         })
     }

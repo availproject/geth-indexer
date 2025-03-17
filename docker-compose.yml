@@ -29,11 +29,9 @@ services:
       dockerfile: Dockerfile
     restart: always
     environment:
-      - DATABASE_URL=postgres://postgres:password@db:5432
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - DATABASE_URL=postgres://postgres:password@db:5432?sslmode=disable
       - REDIS_PASSWORD=mysecurepassword
-      - REDIS_HOSTNAME=localhost:6379
+      - REDIS_HOSTNAME=redis:6379
     depends_on:
       - db
       - pgweb

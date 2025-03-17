@@ -24,7 +24,7 @@ CREATE TABLE chains (
 );
 
 CREATE TABLE blocks (
-    chain_id BIGINT NOT NULL REFERENCES nodes(chain_id),
+    chain_id BIGINT NOT NULL REFERENCES chains(chain_id),
     block_number BIGINT NOT NULL,
     block_hash TEXT NOT NULL,
     parent_hash TEXT NOT NULL,
