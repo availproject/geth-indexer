@@ -81,10 +81,14 @@ __Field__
 
 |Name |Parameter |
 |:--- |:---  |
-|`{average_tps}` <sup>\*One of</sup> |UTF-8|
+|`{current_tps}` <sup>\*One of</sup> |UTF-8|
+|`{transaction_volume}` <sup>\*One of</sup> |UTF-8|
+|`{total_transactions}` <sup>\*One of</sup> |UTF-8|
+|`{successful_transfers}` <sup>\*One of</sup> |UTF-8|
 
 __Identifier__
 
 | Name |
 |:---  |
 | `{chain_id}`  <sup>\*optional</sup> |
+

@@ -25,7 +25,6 @@ diesel-async = { workspace = true, features = ["postgres", "deadpool"] }
 diesel_migrations = { workspace = true, features = ["postgres"] }
 dotenvy = { workspace = true }
 itertools = { workspace = true }
-postcard = { workspace = true, features = ["use-std"] }
 reqwest = { workspace = true, features = ["rustls-tls"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

@@ -74,3 +74,4 @@ pub(crate) fn metrics(
 
     get_metrics_route(provider.clone())
 }
+
