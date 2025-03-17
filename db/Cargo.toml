@@ -1,0 +1,40 @@
+[package]
+name = "db"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+alloy = { workspace = true, features = [
+    "consensus",
+    "providers",
+    "rpc",
+    "rpc-client",
+    "rpc-types",
+    "rpc-types-eth",
+    "signers",
+    "signer-local",
+    "signer-mnemonic",
+    "transports",
+] }
+chrono = { workspace = true, features = ["serde"] }
+redis = { workspace = true, features = ["tls"] }
+deadpool = { workspace = true }
+diesel = { workspace = true, features = ["chrono", "serde_json", "uuid", "postgres"] }
+diesel-async = { workspace = true, features = ["postgres", "deadpool"] }
+diesel_migrations = { workspace = true, features = ["postgres"] }
+dotenvy = { workspace = true }
+itertools = { workspace = true }
+postcard = { workspace = true, features = ["use-std"] }
+reqwest = { workspace = true, features = ["rustls-tls"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "sync"] }
+tracing = { workspace = true }
+triehash = { workspace = true }
+
+[dev-dependencies]
+diesel = { workspace = true, features = ["postgres"] }
+diesel_migrations = { workspace = true, features = ["postgres"] }
+pretty_assertions = { workspace = true }

@@ -1,0 +1,49 @@
+version: "3.8"
+services:
+  db:
+    container_name: db
+    image: postgres:15
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    networks:
+      - indexer_network
+  pgweb:
+    container_name: pgweb
+    image: sosedoff/pgweb
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      - PGWEB_DATABASE_URL=postgres://postgres:password@db:5432?sslmode=disable
+    depends_on:
+      - db
+    networks:
+      - indexer_network
+  server:
+    build:
+      dockerfile: Dockerfile
+      target: server
+    restart: always
+    depends_on:
+      - db
+      - pgweb
+      - redis
+    networks:
+      - indexer_network
+  redis:
+    image: "redis:alpine"
+    command: redis-server --save "" --appendonly no --requirepass mysecurepassword --maxmemory 500mb --maxmemory-policy volatile-ttl
+    environment:
+      - REDIS_PASSWORD=mysecurepassword
+      - REDIS_HOSTNAME=localhost:6379
+    ports:
+      - 6379:6379
+    networks:
+      - indexer_network
+networks:
+  indexer_network:

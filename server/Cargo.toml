@@ -1,0 +1,28 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-std = { workspace = true }
+alloy = { workspace = true, features = ["json-rpc", "rpc"] }
+warp = { workspace = true, features = ["tls"] }
+bytes = { workspace = true }
+clap = { workspace = true }
+dotenvy = { workspace = true }
+http-body-util = { workspace = true }
+reqwest = { workspace = true, features = ["rustls-tls"] }
+sled = { workspace = true }
+toml = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = [
+    "macros",
+    "net",
+    "rt",
+    "rt-multi-thread",
+] }
+tower-http = { workspace = true, features = ["cors", "trace", "timeout"] }
+tracing = { workspace = true }
+db = { path = "../db" }
