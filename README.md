@@ -22,6 +22,106 @@ __Identifier__
 | `{chain_id}`  <sup>\*optional</sup> |
 
 
+__Request_Response_Examples__
+
+* Current TPS
+
+    * Request
+
+      `GET /metrics/current_tps`
+
+      ```bash
+      # Without chain_id
+      curl http://localhost:9090/metrics/current_tps
+      ```
+
+       ```bash
+      # With chain_id
+      curl http://localhost:9090/metrics/current_tps?chain_id=7890
+      ```
+
+    * Response
+
+      ```json
+      {
+        "150"
+      }
+      ```
+
+* Transaction Volume
+    * Request
+
+      `GET /metrics/transaction_volume`
+
+      ```bash
+      # Without chain_id
+      curl http://localhost:9090/metrics/transaction_volume
+      ```
+
+       ```bash
+      # With chain_id
+      curl http://localhost:9090/metrics/transaction_volume?chain_id=7890
+      ```
+
+    * Response
+
+      ```json
+        [
+            {"successful_txns":1353,"total_txns":1353,"timestamp":"2025-03-16 21:23:59.000 IST"},
+            {"successful_txns":2068,"total_txns":2068,"timestamp":"2025-03-16 21:23:59.000 IST"}
+        ]
+      ```
+
+* Daily Successful transfer
+
+    * Request
+
+      `GET /metrics/successful_transfers`
+
+      ```bash
+      # Without chain_id
+      curl http://localhost:9090/metrics/successful_transfers
+      ```
+
+       ```bash
+      # With chain_id
+      curl http://localhost:9090/metrics/successful_transfers?chain_id=7890
+      ```
+
+    * Response
+
+      ```json
+      {
+        "200"
+      }
+      ```
+
+* Daily Total Transfers
+
+    * Request
+
+      `GET /metrics/total_transfers`
+
+      ```bash
+      # Without chain_id
+      curl http://localhost:9090/metrics/total_transfers
+      ```
+
+       ```bash
+      # With chain_id
+      curl http://localhost:9090/metrics/total_transfers?chain_id=7890
+      ```
+
+    * Response
+
+      ```json
+      {
+        "300"
+      }
+      ```
+
+
+
 ## Blocks
 
 ### **GET** /blocks?[Identifier]&[Order]&[Limit]
