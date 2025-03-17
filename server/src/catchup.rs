@@ -76,7 +76,7 @@ pub async fn count_native_transfers(
     let mut failed = 0;
 
     for tx in block.transactions.txns() {
-        if tx.value > U256::ZERO && tx.input.is_empty() {
+        if tx.value > U256::ZERO && tx.input.is_empty() && tx.to.is_some() {
             total += 1;
             let receipt = external_provider
                 .get_transaction_receipt(tx.hash)
