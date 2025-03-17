@@ -32,6 +32,8 @@ services:
       - DATABASE_URL=postgres://postgres:password@db:5432?sslmode=disable
       - REDIS_PASSWORD=redis
       - REDIS_HOSTNAME=redis:6379
+    ports:
+      - 9090:9090
     depends_on:
       - db
       - pgweb
