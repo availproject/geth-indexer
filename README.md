@@ -192,10 +192,10 @@ Response:
 ]
 ```
 
-## You can also apply pagination and limits, default page_idx is 0 and limit is 10.
+## You can also apply limits, default limit is 10.
 
 ```
-http://localhost:9090/transactions?latest=true&&chain_id=7890&&page_idx=0&&limit=10
+http://localhost:9090/transactions?latest=true&&chain_id=7890&&limit=10
 ```
 
 ```
@@ -272,4 +272,57 @@ Response:
     }
 ]
 
+```
+
+## In case you are looking to query full transactions 
+
+```
+http://localhost:9090/transactions?latest=true&&chain_id=7890&&all=true&&limit=2
+```
+
+```
+Response 
+
+[
+    {
+        "Transaction": {
+            "hash": "0x2895ec1eea1ffaa39364f0070cade1eb5626717124bb4304c31d82193ffb45c6",
+            "nonce": "0xf3",
+            "blockHash": "0x9c0bc9ab9b9fb7f226b7bbbf828bdca07ea6c0c9643eecb26175805caf7587ab",
+            "blockNumber": "0x6b08c",
+            "transactionIndex": "0x0",
+            "from": "0xb7004d323788ef312af726a00060d2fa90cfe11c",
+            "to": "0x853b73e7e3ccb992d67d3809a6fb3bae4361aff1",
+            "value": "0x1",
+            "gasPrice": "0x0",
+            "gas": "0x1c9c380",
+            "input": "0x",
+            "r": "0x766ca754a88427fe57f7d1524377de0a8318c9e6990a806da815099cd92bf2d8",
+            "s": "0x1201163b060b5dec83e617304729f2bc3a86662dde66723082220b136132ec1d",
+            "v": "0x3dc8",
+            "chainId": "0x1ed2",
+            "accessList": []
+        }
+    },
+    {
+        "Transaction": {
+            "hash": "0x927ed96d6a88bc7814fd1ed402fa87b8c1d787a37c4a242abbd3ffd99f757f6b",
+            "nonce": "0xeb",
+            "blockHash": "0x9c0bc9ab9b9fb7f226b7bbbf828bdca07ea6c0c9643eecb26175805caf7587ab",
+            "blockNumber": "0x6b08c",
+            "transactionIndex": "0x1",
+            "from": "0x9035412c90420b81af3fa4a90a619b7664f954e4",
+            "to": "0x853b73e7e3ccb992d67d3809a6fb3bae4361aff1",
+            "value": "0x1",
+            "gasPrice": "0x0",
+            "gas": "0x1c9c380",
+            "input": "0x",
+            "r": "0x27aab4a803a4ca60f59e235d2abc5f02e6b030386a0cf008c545a78c51368005",
+            "s": "0x6e52cc1e92100c2f01a9b9ab9eaf345fb40d9bbc4acc017ca7e2d298d60e289a",
+            "v": "0x3dc8",
+            "chainId": "0x1ed2",
+            "accessList": []
+        }
+    }
+]
 ```
