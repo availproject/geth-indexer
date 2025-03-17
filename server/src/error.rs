@@ -28,8 +28,8 @@ pub enum IndexerError {
     #[error("Redis Error: {0}")]
     RedisError(#[from] RedisError),
 
-    #[error("External Provider Error")]
-    ProviderError(String),
+    // #[error("External Provider Error")]
+    // ProviderError(String),
 }
 
 impl warp::reject::Reject for IndexerError {}
@@ -42,8 +42,8 @@ pub(crate) async fn handle_rejection(
         Some(IndexerError::ReqwestError(_)) => (StatusCode::BAD_REQUEST, "Reqwest Error"),
         Some(IndexerError::TokioJoinError(_)) => (StatusCode::BAD_REQUEST, "Tokio Join Error"),
         Some(IndexerError::RedisError(_)) => (StatusCode::BAD_REQUEST, "Tokio Join Error"),
-        Some(IndexerError::ProviderError(_)) => (StatusCode::BAD_REQUEST, "External Provider Error"),
-        None => panic!("Irrecoverable error: Incorrect endpoint. Please check indexer logs for further debugging."),
+       //  Some(IndexerError::ProviderError(_)) => (StatusCode::BAD_REQUEST, "External Provider Error"),
+        None => panic!("Irrecoverable error: Please check indexer logs for further debugging."),
     };
 
     let error = serde_json::to_string(&ResponseError {

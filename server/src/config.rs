@@ -21,10 +21,8 @@ impl Default for IndexerConfig {
             listening_port: 9090,
             geth_endpoints: vec![
                 "http://139.59.46.36:22001".to_string(),
-                "http://128.199.25.233:22001".to_string(),
-                "http://139.59.30.161:22001".to_string(),
             ],
-            indexer_start_heights: vec![None, None, None],
+            indexer_start_heights: vec![Some(438200)],
         }
     }
 }

@@ -31,9 +31,8 @@ pub fn add_block(
         .arg(total_xfers)
         .query::<()>(conn)?;
 
-    redis::cmd("ZADD")
+    redis::cmd("SET")
         .arg(&tps_key)
-        .arg(timestamp)
         .arg(tx_count)
         .query::<()>(conn)?;
 
@@ -52,36 +51,11 @@ pub fn get_latest_height(chain_id: &u64, conn: &mut redis::Connection) -> RedisR
     Ok(height)
 }
 
-pub fn get_latest_tps_in_range(
-    chain_id: &u64,
-    start_ts: i64,
-    end_ts: i64,
-    conn: &mut redis::Connection,
-) -> RedisResult<u64> {
+pub fn get_latest_tps(chain_id: &u64, conn: &mut redis::Connection) -> RedisResult<u64> {
     let tps_key = format!("chain:{}:tps", chain_id);
-    let raw: Vec<String> = redis::cmd("ZRANGEBYSCORE")
-        .arg(&tps_key)
-        .arg(start_ts)
-        .arg(end_ts)
-        .arg("WITHSCORES")
-        .query(conn)?;
+    let tps = redis::cmd("GET").arg(&tps_key).query::<u64>(conn)?;
 
-    let mut pairs: Vec<(String, f64)> = Vec::new();
-    for chunk in raw.chunks_exact(2) {
-        let member_str = chunk[0].clone();
-        let score_str = chunk[1].clone();
-
-        if let Ok(score_val) = score_str.parse::<f64>() {
-            pairs.push((member_str, score_val));
-        }
-    }
-
-    let sum: u64 = pairs
-        .iter()
-        .map(|(member_str, _)| member_str.parse::<u64>().unwrap_or(0))
-        .sum();
-
-    Ok(sum)
+    Ok(tps)
 }
 
 pub fn get_successful_xfers_in_range(
@@ -113,6 +87,8 @@ pub fn get_successful_xfers_in_range(
         .map(|(member_str, _)| member_str.parse::<u64>().unwrap_or(0))
         .sum();
 
+    println!("sum {}", sum);
+
     Ok(sum)
 }
 
@@ -122,7 +98,6 @@ pub fn get_all_chains_success_xfers_in_range(
     conn: &mut redis::Connection,
 ) -> redis::RedisResult<u64> {
     let chain_ids: Vec<u64> = redis::cmd("SMEMBERS").arg("chains").query(conn)?;
-
     let mut total_sum = 0u64;
 
     for chain_id in chain_ids {
@@ -133,17 +108,11 @@ pub fn get_all_chains_success_xfers_in_range(
     Ok(total_sum)
 }
 
-pub fn get_all_chains_tps_in_range(
-    start_ts: i64,
-    end_ts: i64,
-    conn: &mut redis::Connection,
-) -> redis::RedisResult<u64> {
+pub fn get_all_chains_tps_in_range(conn: &mut redis::Connection) -> redis::RedisResult<u64> {
     let chain_ids: Vec<u64> = redis::cmd("SMEMBERS").arg("chains").query(conn)?;
-
     let mut total_sum = 0u64;
-
     for chain_id in chain_ids {
-        let chain_sum = get_latest_tps_in_range(&chain_id, start_ts, end_ts, conn)?;
+        let chain_sum = get_latest_tps(&chain_id, conn)?;
         total_sum += chain_sum;
     }
 
@@ -152,7 +121,7 @@ pub fn get_all_chains_tps_in_range(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{sync::Arc, time::{SystemTime, UNIX_EPOCH}};
 
     use super::*;
     use crate::DatabaseConnections;
@@ -173,7 +142,11 @@ mod tests {
             flush_redis(&mut redis_conn)?;
         }
 
-        let now = 1_000_000_000i64;
+        let now_duration = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("SystemTime before UNIX EPOCH!");
+
+        let now = now_duration.as_secs() as i64;
 
         {
             let mut redis_conn = conns.lock().await;
@@ -223,21 +196,18 @@ mod tests {
         }
 
         let redis_conn = conns.clone();
+        let mut redis_conn = redis_conn.lock().await;
 
-        tokio::spawn(async move {
-            let mut redis_conn = redis_conn.lock().await;
+        let last_30_min_start = now - 1800;
+        let a_30min =
+            get_successful_xfers_in_range(&1001, last_30_min_start, now, &mut redis_conn)
+                .unwrap();
+        assert_eq!(a_30min, 10 + 20 + 30 + 40);
 
-            let last_30_min_start = now - 1800;
-            let a_30min =
-                get_successful_xfers_in_range(&1001, last_30_min_start, now, &mut redis_conn)
-                    .unwrap();
-            assert_eq!(a_30min, 10 + 20 + 30 + 40);
-
-            let b_30min =
-                get_successful_xfers_in_range(&1002, last_30_min_start, now, &mut redis_conn)
-                    .unwrap();
-            assert_eq!(b_30min, 5 + 15 + 25 + 50);
-        });
+        let b_30min =
+            get_successful_xfers_in_range(&1002, last_30_min_start, now, &mut redis_conn)
+                .unwrap();
+        assert_eq!(b_30min, 5 + 15 + 25 + 50);
 
         Ok(())
     }

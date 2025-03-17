@@ -4,9 +4,11 @@ use alloy::providers::Provider;
 use alloy::rpc::types::Block;
 use async_std::task::sleep;
 use db::provider::InternalDataProvider;
+use db::ToHexString;
 use std::sync::Arc;
 use std::time;
-use tracing::info;
+use futures::stream::{StreamExt, FuturesUnordered};
+use tokio::task;
 
 use crate::error::IndexerError;
 use crate::indexer::ExternalProvider;
@@ -40,7 +42,7 @@ pub(crate) async fn catch_up_blocks(
             .await
         {
             if current_block.is_none() {
-                break;
+                continue;
             }
             let current_block = current_block.unwrap();
             validator_max_height = std::cmp::max(validator_max_height, current_block.header.number);
@@ -49,9 +51,11 @@ pub(crate) async fn catch_up_blocks(
                 let (total_xfers, successful_xfers) =
                     match count_native_transfers(&current_block, &external_provider).await {
                         Ok((total_xfers, successful_xfers)) => (total_xfers, successful_xfers),
-                        Err(_) => break,
+                        Err(_) => {
+                            break;
+                        },
                     };
-                info!("received block at {}", current_block.header.number);
+
                 if let Ok(()) = internal_provider
                     .add_block(
                         chain_id,
@@ -67,6 +71,7 @@ pub(crate) async fn catch_up_blocks(
                     break;
                 }
             }
+
             query_param = BlockNumberOrTag::Number(indexer_block_height.saturating_add(1));
             sleep(time::Duration::from_millis(SLEEP)).await;
         }
@@ -80,17 +85,30 @@ pub async fn count_native_transfers(
     let mut total = 0;
     let mut failed = 0;
 
-    for tx in block.transactions.txns() {
-        if tx.value > U256::ZERO && tx.input.is_empty() {
-            total += 1;
-            let receipt = external_provider
-                .get_transaction_receipt(tx.hash)
-                .await
-                .map_err(|e| IndexerError::ProviderError(e.to_string()))?;
-            let is_failed = receipt.map_or(false, |r| r.status() == false);
-            if is_failed {
-                failed += 1;
+    let tasks: FuturesUnordered<_> = block.transactions.txns().map(|tx| {
+        let provider = external_provider.clone();
+        let tx = tx.clone();
+        task::spawn(async move {
+            let is_transfer = tx.input.is_empty()
+                && tx.input.to_hex_string() == "0x"
+                && tx.to.is_some()
+                && tx.value > U256::ZERO;
+
+            if is_transfer {
+                let receipt = provider.get_transaction_receipt(tx.hash).await.ok().flatten();
+                let is_failed = receipt.map_or(false, |r| !r.status());
+                Some((1, is_failed as u64)) 
+            } else {
+                None
             }
+        })
+    }).collect();
+
+    let results = tasks.collect::<Vec<_>>().await;
+    for result in results {
+        if let Ok(Some((t, f))) = result {
+            total += t;
+            failed += f;
         }
     }
 

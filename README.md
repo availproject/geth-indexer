@@ -22,6 +22,10 @@ __Identifier__
 | `{chain_id}`  <sup>\*optional</sup> |
 
 
+__Request_Response_Examples__
+
+
+
 ## Blocks
 
 ### **GET** /blocks?[Identifier]&[Order]&[Limit]

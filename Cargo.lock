@@ -3758,6 +3758,7 @@ dependencies = [
  "clap",
  "db",
  "dotenvy",
+ "futures",
  "http-body-util",
  "reqwest",
  "serde",

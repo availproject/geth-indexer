@@ -1,8 +1,8 @@
-use alloy::primitives::Bloom;
-use alloy::primitives::{hex::ToHexExt, Address, Bytes, FixedBytes, U256, U64};
+use alloy::primitives::{hex::ToHexExt, Address, Bloom, Bytes, FixedBytes, U256, U64};
 use alloy::rpc::types::eth::Transaction;
 use alloy::signers::k256::ecdsa::SigningKey;
 use serde::{Deserialize, Serialize};
+use chrono::{FixedOffset, Utc, TimeZone};
 
 #[derive(Clone)]
 pub enum Metric {
@@ -10,6 +10,13 @@ pub enum Metric {
     TransactionVolume,
     TotalTransactions,
     SuccessfulTransfers,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TxResponse {
+    pub successful_txns: u64,
+    pub total_txns: u64,
+    pub timestamp: String,
 }
 
 impl std::str::FromStr for Metric {
@@ -194,6 +201,21 @@ impl ToHexString for SigningKey {
 
 fn to_hex_string_internal(bytes: &[u8]) -> String {
     bytes.encode_hex_with_prefix()
+}
+
+pub fn unix_ms_to_ist(timestamp_ms: i64) -> String {
+    let secs = timestamp_ms / 1000;
+    let nanos = (timestamp_ms % 1000) * 1_000_000; // Convert ms to ns
+
+    let utc_dt = match Utc.timestamp_opt(secs, nanos as u32) {
+        chrono::LocalResult::Single(dt) => dt,
+        _ => panic!("Invalid timestamp"), // Handle error properly in production
+    };
+
+    let ist_offset = FixedOffset::east_opt(5 * 3600 + 30 * 60).expect("Invalid offset");
+    let ist_dt = utc_dt.with_timezone(&ist_offset);
+
+    ist_dt.format("%Y-%m-%d %H:%M:%S%.3f IST").to_string()
 }
 
 pub const MAX_WINDOW_SIZE: u64 = 25;

@@ -88,7 +88,7 @@ impl DatabaseConnections {
 
     pub async fn init() -> Result<Self, std::io::Error> {
         Ok(Self {
-            postgres: Some(Self::init_postgres().await?),
+            postgres: None, //Some(Self::init_postgres().await?),
             redis: Arc::new(Mutex::new(Self::init_redis())),
         })
     }
