@@ -4,7 +4,7 @@ use diesel_async::{
     AsyncPgConnection,
 };
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use std::{env, sync::Arc};
+use std::{env, sync::Arc, thread, time::Duration};
 use tokio::sync::Mutex;
 use tracing::{error, info};
 
@@ -36,6 +36,8 @@ impl DatabaseConnections {
                     attempt, MAX_RETRIES, e
                 ),
             }
+
+            thread::sleep(Duration::from_secs(1));
         }
 
         error!("Migration failed after {} attempts", MAX_RETRIES);
@@ -92,4 +94,4 @@ impl DatabaseConnections {
     }
 }
 
-const MAX_RETRIES: u32 = 5;
+const MAX_RETRIES: u32 = 100;
