@@ -135,10 +135,10 @@ pub fn get_latest_tps(chain_id: &u64, conn: &mut redis::Connection) -> RedisResu
 pub fn get_successful_xfers_in_range(
     chain_id: &u64,
     stride: i64,
+    latest_timestamp: i64,
     conn: &mut redis::Connection,
 ) -> RedisResult<u64> {
     let successful_key = format!("chain:{}:successful", chain_id);
-    let latest_timestamp = get_latest_timestamp(chain_id, conn)?;
     let raw: Vec<String> = redis::cmd("ZRANGEBYSCORE")
         .arg(&successful_key)
         .arg(latest_timestamp.saturating_sub(stride))
@@ -166,13 +166,14 @@ pub fn get_successful_xfers_in_range(
 
 pub fn get_all_chains_success_xfers_in_range(
     stride: i64,
+    latest_timestamp: i64,
     conn: &mut redis::Connection,
 ) -> redis::RedisResult<u64> {
     let chain_ids: Vec<u64> = redis::cmd("SMEMBERS").arg("chains").query(conn)?;
     let mut total_sum = 0u64;
 
     for chain_id in chain_ids {
-        let chain_sum = get_successful_xfers_in_range(&chain_id, stride, conn)?;
+        let chain_sum = get_successful_xfers_in_range(&chain_id, stride, latest_timestamp, conn)?;
         total_sum += chain_sum;
     }
 
