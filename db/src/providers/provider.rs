@@ -239,8 +239,8 @@ impl InternalDataProvider {
                     // 96 times, so iterate till last 24 hr data (96 * 15min = 24hr)
                     let success = get_successful_xfers_in_range(
                         &chain_id,
-                        i,
-                        latest_timestamp,
+                        i * interval,
+                        latest_timestamp.saturating_sub((i - 1) * interval),
                         &mut redis_conn,
                     )
                     .unwrap_or(0);
@@ -253,9 +253,12 @@ impl InternalDataProvider {
                 }
             } else {
                 for i in 1..96 {
-                    let success =
-                        get_all_chains_success_xfers_in_range(i, latest_timestamp, &mut redis_conn)
-                            .unwrap_or(0);
+                    let success = get_all_chains_success_xfers_in_range(
+                        i * interval,
+                        latest_timestamp.saturating_sub((i - 1) * interval),
+                        &mut redis_conn,
+                    )
+                    .unwrap_or(0);
 
                     tx_response.push(TxResponse {
                         successful_txns: success as u64,
