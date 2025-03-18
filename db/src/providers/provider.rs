@@ -67,7 +67,9 @@ impl InternalDataProvider {
             } else {
                 let txn_summary = TxnSummary {
                     hash: tx.transaction_hash,
-                    signer: tx._from,
+                    block_hash: tx.block_hash,
+                    from: tx._from.clone(),
+                    to: tx._to,
                     status: Some(1),
                     value: tx.value,
                     block_height: tx.block_number.unwrap() as u64,
@@ -190,10 +192,12 @@ impl InternalDataProvider {
     pub async fn total_xfers_last_day(&self, identifier: ChainId) -> RedisResult<u64> {
         let tps = {
             let mut redis_conn = self.dbc.redis.lock().await;
+            let latest_timestamp =
+                get_latest_timestamp(&identifier.chain_id.clone().unwrap(), &mut redis_conn)?;
             let tps = if let Some(chain_id) = identifier.chain_id {
-                get_successful_xfers_in_range(&chain_id, 86400, &mut redis_conn)?
+                get_successful_xfers_in_range(&chain_id, 86400, latest_timestamp, &mut redis_conn)?
             } else {
-                get_all_chains_success_xfers_in_range(86400, &mut redis_conn)?
+                get_all_chains_success_xfers_in_range(86400, latest_timestamp, &mut redis_conn)?
             };
 
             tps as u64
@@ -205,10 +209,14 @@ impl InternalDataProvider {
     pub async fn successful_xfers_last_day(&self, identifier: ChainId) -> RedisResult<u64> {
         let xfers = {
             let mut redis_conn = self.dbc.redis.lock().await;
+            let latest_timestamp =
+                get_latest_timestamp(&identifier.chain_id.clone().unwrap(), &mut redis_conn)?;
             let xfers = if let Some(chain_id) = identifier.chain_id {
-                get_successful_xfers_in_range(&chain_id, 86400, &mut redis_conn).unwrap_or(0)
+                get_successful_xfers_in_range(&chain_id, 86400, latest_timestamp, &mut redis_conn)
+                    .unwrap_or(0)
             } else {
-                get_all_chains_success_xfers_in_range(86400, &mut redis_conn).unwrap_or(0)
+                get_all_chains_success_xfers_in_range(86400, latest_timestamp, &mut redis_conn)
+                    .unwrap_or(0)
             };
 
             xfers as u64
@@ -221,32 +229,38 @@ impl InternalDataProvider {
         let mut tx_response = Vec::new();
 
         {
-            let now_duration = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("SystemTime before UNIX EPOCH!");
-
-            let now_seconds = now_duration.as_secs() as i64;
             let mut redis_conn = self.dbc.redis.lock().await;
+
+            let latest_timestamp =
+                get_latest_timestamp(&identifier.chain_id.clone().unwrap(), &mut redis_conn)?;
+            let interval: i64 = 900; // 15 min in seconds
             if let Some(chain_id) = identifier.chain_id {
-                for i in 1..20 {
-                    let success =
-                        get_successful_xfers_in_range(&chain_id, i, &mut redis_conn).unwrap_or(0);
+                for i in 1..96 {
+                    // 96 times, so iterate till last 24 hr data (96 * 15min = 24hr)
+                    let success = get_successful_xfers_in_range(
+                        &chain_id,
+                        i,
+                        latest_timestamp,
+                        &mut redis_conn,
+                    )
+                    .unwrap_or(0);
 
                     tx_response.push(TxResponse {
                         successful_txns: success as u64,
                         total_txns: success as u64,
-                        timestamp: unix_ms_to_ist(now_seconds.saturating_sub(86400)),
+                        timestamp: unix_ms_to_ist(latest_timestamp.saturating_sub(i * interval)),
                     })
                 }
             } else {
-                for i in 1..20 {
+                for i in 1..96 {
                     let success =
-                        get_all_chains_success_xfers_in_range(i, &mut redis_conn).unwrap_or(0);
+                        get_all_chains_success_xfers_in_range(i, latest_timestamp, &mut redis_conn)
+                            .unwrap_or(0);
 
                     tx_response.push(TxResponse {
                         successful_txns: success as u64,
                         total_txns: success as u64,
-                        timestamp: unix_ms_to_ist(now_seconds.saturating_sub(i)),
+                        timestamp: unix_ms_to_ist(latest_timestamp.saturating_sub(i * interval)),
                     })
                 }
             };
