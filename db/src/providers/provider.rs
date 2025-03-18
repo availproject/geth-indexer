@@ -67,6 +67,9 @@ impl InternalDataProvider {
             } else {
                 let txn_summary = TxnSummary {
                     hash: tx.transaction_hash,
+                    block_hash: tx.block_hash.unwrap() as String,
+                    from: tx._from.clone(),
+                    to: tx._to.unwrap() as String,
                     signer: tx._from,
                     status: Some(1),
                     value: tx.value,

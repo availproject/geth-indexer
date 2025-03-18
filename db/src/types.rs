@@ -136,6 +136,9 @@ extract! {
 #[derive(Deserialize, Serialize)]
 pub struct TxnSummary {
     pub hash: String,
+    pub block_hash: String,
+    pub to: String,
+    pub from: String,
     pub signer: String,
     pub status: Option<u8>,
     pub value: String,
