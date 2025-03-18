@@ -80,12 +80,14 @@ pub fn get_live_tps(
 ) -> RedisResult<Vec<u64>> {
     let live_tps_key = format!("chain:{}:live_tps", chain_id);
     let latest_timestamp = get_latest_timestamp(chain_id, conn)?;
+
     let mut stride = stride.stride.unwrap_or(1);
     if stride == 1 {
-        stride = 3600; // 1 hr
+        stride = 3600; // 1 hour
     } else {
-        stride = 600; // 10 in secs
+        stride = 600; // 10 minutes
     }
+
     let raw: Vec<String> = redis::cmd("ZRANGEBYSCORE")
         .arg(&live_tps_key)
         .arg(latest_timestamp.saturating_sub(stride as i64))
@@ -103,10 +105,21 @@ pub fn get_live_tps(
         }
     }
 
-    let tps: Vec<u64> = pairs
-        .iter()
-        .map(|(member_str, _)| member_str.parse::<u64>().unwrap_or(0))
-        .collect();
+    // Pick data at 1-minute intervals
+    let mut tps: Vec<u64> = Vec::new();
+    let mut last_minute: Option<i64> = None;
+
+    for (member_str, score) in &pairs {
+        let timestamp = *score as i64; // Convert score to integer timestamp
+        let minute = timestamp / 60; // Get minute component
+
+        if Some(minute) != last_minute {
+            if let Ok(value) = member_str.parse::<u64>() {
+                tps.push(value);
+            }
+            last_minute = Some(minute);
+        }
+    }
 
     Ok(tps)
 }
