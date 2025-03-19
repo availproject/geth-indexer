@@ -162,8 +162,8 @@ impl InternalDataProvider {
         height
     }
 
-    pub async fn live_tps(&self, identifier: ChainId, stride: Stride) -> RedisResult<Vec<u64>> {
-        let tps = {
+    pub async fn live_tps(&self, identifier: ChainId, stride: Stride) -> RedisResult<Vec<(u64, String)>> {
+        let tps_with_timestamps = {
             let mut redis_conn = self.dbc.redis.lock().await;
             if let Some(chain_id) = identifier.chain_id {
                 get_live_tps(&chain_id, stride, &mut redis_conn)?
@@ -172,7 +172,7 @@ impl InternalDataProvider {
             }
         };
 
-        Ok(tps)
+        Ok(tps_with_timestamps)
     }
 
     pub async fn current_tps(&self, identifier: ChainId) -> RedisResult<u64> {
@@ -192,12 +192,17 @@ impl InternalDataProvider {
     pub async fn total_xfers_last_day(&self, identifier: ChainId) -> RedisResult<u64> {
         let tps = {
             let mut redis_conn = self.dbc.redis.lock().await;
-            let latest_timestamp =
-                get_latest_timestamp(&identifier.chain_id.clone().unwrap(), &mut redis_conn)?;
             let tps = if let Some(chain_id) = identifier.chain_id {
+                let latest_timestamp =
+                    get_latest_timestamp(&chain_id, &mut redis_conn)?;
+
                 get_successful_xfers_in_range(&chain_id, 86400, latest_timestamp, &mut redis_conn)?
             } else {
-                get_all_chains_success_xfers_in_range(86400, latest_timestamp, &mut redis_conn)?
+                let now_duration = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("SystemTime before UNIX EPOCH!");
+
+                get_all_chains_success_xfers_in_range(86400, now_duration.as_secs() as i64, &mut redis_conn)?
             };
 
             tps as u64
@@ -209,13 +214,16 @@ impl InternalDataProvider {
     pub async fn successful_xfers_last_day(&self, identifier: ChainId) -> RedisResult<u64> {
         let xfers = {
             let mut redis_conn = self.dbc.redis.lock().await;
-            let latest_timestamp =
-                get_latest_timestamp(&identifier.chain_id.clone().unwrap(), &mut redis_conn)?;
             let xfers = if let Some(chain_id) = identifier.chain_id {
+                let latest_timestamp = get_latest_timestamp(&chain_id, &mut redis_conn)?;
                 get_successful_xfers_in_range(&chain_id, 86400, latest_timestamp, &mut redis_conn)
                     .unwrap_or(0)
             } else {
-                get_all_chains_success_xfers_in_range(86400, latest_timestamp, &mut redis_conn)
+                let now_duration = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("SystemTime before UNIX EPOCH!");
+
+                get_all_chains_success_xfers_in_range(86400, now_duration.as_secs() as i64, &mut redis_conn)
                     .unwrap_or(0)
             };
 

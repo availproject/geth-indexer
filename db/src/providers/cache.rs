@@ -1,6 +1,6 @@
 use redis::RedisResult;
 
-use crate::Stride;
+use crate::{unix_ms_to_ist, Stride};
 
 pub fn add_block(
     chain_id: &u64,
@@ -77,15 +77,15 @@ pub fn get_live_tps(
     chain_id: &u64,
     stride: Stride,
     conn: &mut redis::Connection,
-) -> RedisResult<Vec<u64>> {
+) -> RedisResult<Vec<(u64, String)>> {
     let live_tps_key = format!("chain:{}:live_tps", chain_id);
     let latest_timestamp = get_latest_timestamp(chain_id, conn)?;
 
     let mut stride = stride.stride.unwrap_or(1);
     if stride == 1 {
-        stride = 3600; // 1 hour
+        stride = 3600; 
     } else {
-        stride = 600; // 10 minutes
+        stride = 600; 
     }
 
     let raw: Vec<String> = redis::cmd("ZRANGEBYSCORE")
@@ -105,34 +105,27 @@ pub fn get_live_tps(
         }
     }
 
-    // Pick data at 1-minute intervals
-    let mut tps: Vec<u64> = Vec::new();
-    let mut last_minute: Option<i64> = None;
-
+    let mut tps_pairs: Vec<(u64, String)> = Vec::new();
     for (member_str, score) in &pairs {
-        let timestamp = *score as i64; // Convert score to integer timestamp
-        let minute = timestamp / 60; // Get minute component
-
-        if Some(minute) != last_minute {
-            if let Ok(value) = member_str.parse::<u64>() {
-                tps.push(value);
-            }
-            last_minute = Some(minute);
+        let timestamp = *score as i64; 
+        let ist_day = unix_ms_to_ist(timestamp);
+        if let Ok(value) = member_str.parse::<u64>() {
+            tps_pairs.push((value, ist_day));
         }
     }
 
-    Ok(tps)
+    Ok(tps_pairs)
 }
 
 pub fn get_all_chains_live_tps_in_range(
     stride: Stride,
     conn: &mut redis::Connection,
-) -> redis::RedisResult<Vec<u64>> {
+) -> redis::RedisResult<Vec<(u64, String)>> {
     let chain_ids: Vec<u64> = redis::cmd("SMEMBERS").arg("chains").query(conn)?;
-    let mut all_chains: Vec<u64> = Vec::new();
+    let mut all_chains: Vec<(u64, String)> = Vec::new();
     for chain_id in chain_ids {
         let chain_sum = get_live_tps(&chain_id, stride.clone(), conn)?;
-        all_chains.extend(chain_sum.iter());
+        all_chains.extend(chain_sum.into_iter());
     }
 
     Ok(all_chains)
