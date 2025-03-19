@@ -63,8 +63,8 @@ pub(crate) async fn catch_up_blocks(
                 };
 
                 info!(
-                    "current height {} validator height {}, total_xfers {} failed_xfers {}",
-                    current_block.header.number, validator_max_height, total_xfers, failed_xfers
+                    "current height {} validator height {}, total_xfers {} failed_xfers {} chain id {}",
+                    current_block.header.number, validator_max_height, total_xfers, failed_xfers, chain_id,
                 );
 
                 if let Ok(()) = internal_provider
