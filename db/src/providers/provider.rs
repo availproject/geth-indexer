@@ -162,7 +162,11 @@ impl InternalDataProvider {
         height
     }
 
-    pub async fn live_tps(&self, identifier: ChainId, stride: Stride) -> RedisResult<Vec<(u64, String)>> {
+    pub async fn live_tps(
+        &self,
+        identifier: ChainId,
+        stride: Stride,
+    ) -> RedisResult<Vec<(u64, String)>> {
         let tps_with_timestamps = {
             let mut redis_conn = self.dbc.redis.lock().await;
             if let Some(chain_id) = identifier.chain_id {
@@ -193,8 +197,7 @@ impl InternalDataProvider {
         let tps = {
             let mut redis_conn = self.dbc.redis.lock().await;
             let tps = if let Some(chain_id) = identifier.chain_id {
-                let latest_timestamp =
-                    get_latest_timestamp(&chain_id, &mut redis_conn)?;
+                let latest_timestamp = get_latest_timestamp(&chain_id, &mut redis_conn)?;
 
                 get_successful_xfers_in_range(&chain_id, 86400, latest_timestamp, &mut redis_conn)?
             } else {
@@ -202,7 +205,11 @@ impl InternalDataProvider {
                     .duration_since(UNIX_EPOCH)
                     .expect("SystemTime before UNIX EPOCH!");
 
-                get_all_chains_success_xfers_in_range(86400, now_duration.as_secs() as i64, &mut redis_conn)?
+                get_all_chains_success_xfers_in_range(
+                    86400,
+                    now_duration.as_secs() as i64,
+                    &mut redis_conn,
+                )?
             };
 
             tps as u64
@@ -222,9 +229,12 @@ impl InternalDataProvider {
                 let now_duration = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .expect("SystemTime before UNIX EPOCH!");
-
-                get_all_chains_success_xfers_in_range(86400, now_duration.as_secs() as i64, &mut redis_conn)
-                    .unwrap_or(0)
+                get_all_chains_success_xfers_in_range(
+                    86400,
+                    now_duration.as_secs() as i64,
+                    &mut redis_conn,
+                )
+                .unwrap_or(0)
             };
 
             xfers as u64
@@ -238,11 +248,9 @@ impl InternalDataProvider {
 
         {
             let mut redis_conn = self.dbc.redis.lock().await;
-
-            let latest_timestamp =
-                get_latest_timestamp(&identifier.chain_id.clone().unwrap(), &mut redis_conn)?;
             let interval: i64 = 900; // 15 min in seconds
             if let Some(chain_id) = identifier.chain_id {
+                let latest_timestamp = get_latest_timestamp(&chain_id, &mut redis_conn)?;
                 for i in 1..96 {
                     // 96 times, so iterate till last 24 hr data (96 * 15min = 24hr)
                     let success = get_successful_xfers_in_range(
@@ -260,6 +268,10 @@ impl InternalDataProvider {
                     })
                 }
             } else {
+                let now_duration = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("SystemTime before UNIX EPOCH!");
+                let latest_timestamp = now_duration.as_secs() as i64;
                 for i in 1..96 {
                     let success = get_all_chains_success_xfers_in_range(
                         i * interval,

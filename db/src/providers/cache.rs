@@ -83,9 +83,9 @@ pub fn get_live_tps(
 
     let mut stride = stride.stride.unwrap_or(1);
     if stride == 1 {
-        stride = 3600; 
+        stride = 3600;
     } else {
-        stride = 600; 
+        stride = 600;
     }
 
     let raw: Vec<String> = redis::cmd("ZRANGEBYSCORE")
@@ -107,7 +107,7 @@ pub fn get_live_tps(
 
     let mut tps_pairs: Vec<(u64, String)> = Vec::new();
     for (member_str, score) in &pairs {
-        let timestamp = *score as i64; 
+        let timestamp = *score as i64;
         let ist_day = unix_ms_to_ist(timestamp);
         if let Ok(value) = member_str.parse::<u64>() {
             tps_pairs.push((value, ist_day));
