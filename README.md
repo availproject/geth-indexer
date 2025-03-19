@@ -143,7 +143,7 @@ __Parts__
 | Name | Description |
 |:---  |:--- |
 | `{summary_only}` | txn summary |
-| `{full}` | full transactions |
+| `{all}` | full transactions |
 
 __Limit__
 
