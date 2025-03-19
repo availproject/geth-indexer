@@ -3,7 +3,6 @@ services:
   db:
     container_name: db
     image: postgres:15
-    command: postgres -c 'max_connections=1000'
     restart: always
     ports:
       - 5432:5432
@@ -11,6 +10,8 @@ services:
       POSTGRES_PASSWORD: password
     volumes:
       - ./data/db:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     networks:
       - indexer_network
   pgweb:
