@@ -1,3 +1,5 @@
+use std::u64::MIN;
+
 use redis::RedisResult;
 
 use crate::{unix_ms_to_ist, Stride};
@@ -122,13 +124,40 @@ pub fn get_all_chains_live_tps_in_range(
     conn: &mut redis::Connection,
 ) -> redis::RedisResult<Vec<(u64, String)>> {
     let chain_ids: Vec<u64> = redis::cmd("SMEMBERS").arg("chains").query(conn)?;
-    let mut all_chains: Vec<(u64, String)> = Vec::new();
+    let mut all_chains: Vec<Vec<(u64, String)>> = Vec::new();
+    let mut lowest_size = usize::MAX; // Set to max initially
+
     for chain_id in chain_ids {
-        let chain_sum = get_live_tps(&chain_id, stride.clone(), conn)?;
-        all_chains.extend(chain_sum.into_iter());
+        match get_live_tps(&chain_id, stride.clone(), conn) {
+            Ok(chain_sum) => {
+                lowest_size = std::cmp::min(lowest_size, chain_sum.len());
+                all_chains.push(chain_sum);
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
     }
 
-    Ok(all_chains)
+    tracing::info!(" all_chain {:?}", all_chains);
+
+    let mut final_chain_live_tps = Vec::with_capacity(lowest_size);
+
+    for i in 0..lowest_size {
+        let (value, timestamp) = all_chains
+            .iter()
+            .filter_map(|chain| chain.get(i))
+            .fold((0, None), |(sum, _), &(val, ref ts)| {
+                (sum + val, Some(ts.clone()))
+            });
+
+        tracing::info!("value:{}, timestamp:{:?}", value, timestamp);
+        if let Some(ts) = timestamp {
+            final_chain_live_tps.push((value, ts));
+        }
+    }
+
+    Ok(final_chain_live_tps)
 }
 
 pub fn get_latest_tps(chain_id: &u64, conn: &mut redis::Connection) -> RedisResult<u64> {
