@@ -12,9 +12,11 @@ use crate::{Limit, Stride};
 use alloy::rpc::types::eth::Transaction as AlloyTx;
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
+use futures::future::join_all;
 use rayon::prelude::*;
 use redis::RedisResult;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::task;
 
 #[derive(Clone)]
 pub struct InternalDataProvider {
@@ -59,24 +61,26 @@ impl InternalDataProvider {
             .await
             .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
 
-        let mut results = Vec::new();
-        for tx in result {
-            if let Some(_) = parts.all {
-                let tx: AlloyTx = tx.into();
-                results.push(TxAPIResponse::Transaction(tx));
-            } else {
-                let txn_summary = TxnSummary {
-                    hash: tx.transaction_hash,
-                    block_hash: tx.block_hash,
-                    from: tx._from.clone(),
-                    to: tx._to,
-                    status: Some(1),
-                    value: tx.value,
-                    block_height: tx.block_number.unwrap() as u64,
-                };
-                results.push(TxAPIResponse::TxnSummary(txn_summary));
-            };
-        }
+        let results: Vec<TxAPIResponse> = result
+            .into_par_iter()
+            .map(|tx| {
+                if let Some(_) = parts.all {
+                    let tx: AlloyTx = tx.into();
+                    TxAPIResponse::Transaction(tx)
+                } else {
+                    let txn_summary = TxnSummary {
+                        hash: tx.transaction_hash,
+                        block_hash: tx.block_hash,
+                        from: tx._from.clone(),
+                        to: tx._to,
+                        status: Some(1),
+                        value: tx.value,
+                        block_height: tx.block_number.unwrap() as u64,
+                    };
+                    TxAPIResponse::TxnSummary(txn_summary)
+                }
+            })
+            .collect();
 
         Ok(results)
     }
@@ -111,17 +115,40 @@ impl InternalDataProvider {
                 .execute(&mut conn)
                 .await
                 .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
+        }
 
-            diesel::insert_into(transactions_schema)
-                .values(&txns)
-                .on_conflict((
-                    crate::schema::transactions::chain_id,
-                    crate::schema::transactions::transaction_hash,
-                ))
-                .do_nothing()
-                .execute(&mut conn)
-                .await
-                .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
+        let mut tasks = Vec::new();
+        for chunk in txns.chunks(250) {
+            let chunk = chunk.to_vec();
+            let db_pool = self.dbc.postgres.clone();
+            let task = task::spawn(async move {
+                let mut conn = db_pool
+                    .get()
+                    .await
+                    .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
+
+                diesel::insert_into(transactions_schema)
+                    .values(&chunk)
+                    .on_conflict((
+                        crate::schema::transactions::chain_id,
+                        crate::schema::transactions::transaction_hash,
+                    ))
+                    .do_nothing()
+                    .execute(&mut conn)
+                    .await
+                    .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
+
+                Ok::<(), std::io::Error>(())
+            });
+
+            tasks.push(task);
+        }
+
+        let results = join_all(tasks).await;
+        for res in results {
+            if let Err(e) = res {
+                eprintln!("Task failed: {:?}", e);
+            }
         }
 
         Ok(())

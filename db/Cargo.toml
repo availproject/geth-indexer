@@ -23,6 +23,7 @@ deadpool = { workspace = true }
 diesel = { workspace = true, features = ["chrono", "serde_json", "uuid", "postgres"] }
 diesel-async = { workspace = true, features = ["postgres", "deadpool"] }
 diesel_migrations = { workspace = true, features = ["postgres"] }
+futures = { workspace = true }
 dotenvy = { workspace = true }
 itertools = { workspace = true }
 reqwest = { workspace = true, features = ["rustls-tls"] }

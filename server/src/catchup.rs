@@ -22,7 +22,7 @@ pub(crate) async fn catch_up_blocks(
     let (mut indexer_block_height, mut query_param) = if let Some(ht) = indexer_start_height {
         (ht, BlockNumberOrTag::Number(ht + 1))
     } else {
-        match internal_provider.get_latest_height(chain_id).await {
+        match external_provider.get_block_number().await {
             Ok(ht) => (ht, BlockNumberOrTag::Number(ht + 1)),
             Err(_) => (0, BlockNumberOrTag::Number(0)),
         }
@@ -131,10 +131,12 @@ pub async fn process_block(
 
     let chain_id = chain_id.clone();
     tokio::spawn(async move {
-        internal_provider
+        if let Err(e) = internal_provider
             .add_txns(chain_id, transactions.len(), transactions)
             .await
-            .expect("Irrecoverable Error: Could not store txns");
+        {
+            tracing::error!("{}", e.to_string());
+        }
     });
 
     Ok((total, failed))
