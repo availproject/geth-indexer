@@ -316,6 +316,8 @@ impl InternalDataProvider {
             };
         };
 
+        tx_response.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+
         Ok(tx_response)
     }
 }

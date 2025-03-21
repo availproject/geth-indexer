@@ -1,5 +1,3 @@
-use std::u64::MIN;
-
 use redis::RedisResult;
 
 use crate::{unix_ms_to_ist, Stride};
@@ -133,7 +131,7 @@ pub fn get_all_chains_live_tps_in_range(
     for chain_id in chain_ids {
         match get_live_tps(&chain_id, stride.clone(), conn) {
             Ok(chain_live_tps) => {
-                tracing::info!("chain_id:{}, chain_live_tps {:?}", chain_id, chain_live_tps);
+                //tracing::info!("chain_id:{}, chain_live_tps {:?}", chain_id, chain_live_tps);
 
                 if chain_live_tps.len() > max_size {
                     max_size = chain_live_tps.len();
@@ -152,12 +150,11 @@ pub fn get_all_chains_live_tps_in_range(
 
     for chain in &all_chains {
         let offset = max_size - chain.len();
-        for (i, &(val, ref ts)) in chain.iter().enumerate() {
-            final_chain_live_tps[offset + i].0 += val; // Sum the values
+        for (i, &(val, _)) in chain.iter().enumerate() {
+            final_chain_live_tps[offset + i].0 += val;
         }
     }
 
-    // Assign timestamps from the longest chain
     for i in 0..max_size {
         if let Some((_, ref ts)) = longest_chain.get(i) {
             final_chain_live_tps[i].1 = ts.clone();
