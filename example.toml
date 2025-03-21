@@ -3,7 +3,9 @@ listening_port = 9090
 geth_endpoints = [
     "http://34.21.80.98:8845",
     "http://34.48.132.251:8845",
-    "http://34.48.205.25:8845"
+    "http://34.48.205.25:8845",
+    "http://35.236.208.114:8845",
+    "http://35.188.240.101:8845"
 ]
 
-indexer_start_heights = [-1, -1, -1]
+indexer_start_heights = [-1, -1, -1, -1, -1]
