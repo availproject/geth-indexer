@@ -144,6 +144,20 @@ pub struct TxnSummary {
     pub block_height: u64,
 }
 
+impl From<Transaction> for TxnSummary {
+    fn from(tx: Transaction) -> Self {
+        TxnSummary { 
+            hash: tx.hash.to_hex_string(), 
+            block_hash: Some(tx.block_hash.unwrap().to_hex_string()), 
+            to: if tx.to.is_none() { None } else { Some(tx.to.unwrap().to_hex_string()) },
+            from: tx.from.to_hex_string(), 
+            status: Some(1), 
+            value: tx.value.to_hex_string(), 
+            block_height: tx.block_number.unwrap(), 
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize)]
 pub enum TxAPIResponse {
     TxnSummary(TxnSummary),

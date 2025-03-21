@@ -92,8 +92,12 @@ impl InternalDataProvider {
         transactions: Vec<AlloyTx>,
     ) -> Result<(), std::io::Error> {
         let txns: Vec<TransactionModel> = transactions
-            .par_iter()
-            .map(|transaction| TransactionModel::from(chain_id, transaction))
+            .iter()
+            .take(10)
+            .cloned()
+            .collect::<Vec<_>>()
+            .into_par_iter()
+            .map(|transaction| TransactionModel::from(chain_id, &transaction))
             .collect();
 
         {

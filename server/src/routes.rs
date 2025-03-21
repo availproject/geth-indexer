@@ -1,8 +1,9 @@
+use alloy::{primitives::TxHash, providers::Provider};
 use db::{provider::InternalDataProvider, types::*};
-use std::{convert::Infallible, str::FromStr, sync::Arc};
+use std::{collections::BTreeMap, convert::Infallible, str::FromStr, sync::Arc};
 use warp::{self, http, Filter};
 
-use crate::error::IndexerError;
+use crate::{error::IndexerError, indexer::ExternalProvider};
 
 pub(crate) fn index_route(
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
@@ -16,6 +17,7 @@ pub(crate) fn index_route(
 
 pub(crate) fn transactions(
     internal_provider: Arc<InternalDataProvider>,
+    external_provider_map: BTreeMap<u64, ExternalProvider>,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     pub async fn get_transactions(
         limit: Limit,
@@ -23,6 +25,7 @@ pub(crate) fn transactions(
         tx_identifier: TxIdentifier,
         tx_filter: TxFilter,
         internal_provider: Arc<InternalDataProvider>,
+        external_provider_map: BTreeMap<u64, ExternalProvider>,
     ) -> Result<impl warp::Reply, warp::Rejection> {
         let window = limit.limit.unwrap_or(MAX_WINDOW_SIZE);
         if window == 0 || window > MAX_WINDOW_SIZE {
@@ -37,6 +40,54 @@ pub(crate) fn transactions(
             )));
         }
 
+        if let Some(tx_hash_str) = tx_identifier.tx_hash.clone() {
+            let hash = TxHash::from_str(&tx_hash_str).map_err(|_| {
+                warp::reject::custom(IndexerError::ProviderError(format!(
+                    "Invalid transaction hash: {}",
+                    tx_hash_str
+                )))
+            })?;
+        
+            if let Some(chain_id) = tx_filter.chain_id {
+                let provider = external_provider_map.get(&chain_id).ok_or_else(|| {
+                    warp::reject::custom(IndexerError::ProviderError(format!(
+                        "No provider found for chain ID: {}",
+                        chain_id
+                    )))
+                })?;
+        
+                let tx = provider
+                    .get_transaction_by_hash(hash)
+                    .await
+                    .map_err(|_| {
+                        warp::reject::custom(IndexerError::ProviderError(format!(
+                            "Failed to fetch transaction from provider for chain {}",
+                            chain_id
+                        )))
+                    })?
+                    .ok_or_else(|| {
+                        warp::reject::custom(IndexerError::ProviderError(format!(
+                            "Transaction not found on chain {}",
+                            chain_id
+                        )))
+                    })?;
+        
+                return Ok(warp::reply::json(&vec![TxAPIResponse::Transaction(tx)]));
+            }
+        
+            for (_chain_id, provider) in external_provider_map {
+                match provider.get_transaction_by_hash(hash).await {
+                    Ok(Some(tx)) => {
+                        return Ok(warp::reply::json(&vec![TxAPIResponse::Transaction(tx)]));
+                    }
+                    Ok(None) => continue,
+                    Err(_e) => {
+                        continue;
+                    }
+                }
+            }
+        }
+        
         let tx_responses = match internal_provider
             .get_txs(tx_identifier, tx_filter, parts, limit)
             .await
@@ -52,7 +103,7 @@ pub(crate) fn transactions(
         Ok(warp::reply::json(&tx_responses))
     }
 
-    let transactions_route = |internal_provider: Arc<InternalDataProvider>| {
+    let transactions_route = |internal_provider: Arc<InternalDataProvider>, external_provider_map: BTreeMap<u64, ExternalProvider>| {
         warp::get()
             .and(warp::path("transactions"))
             .and(warp::query::<TxIdentifier>())
@@ -67,11 +118,12 @@ pub(crate) fn transactions(
                     tx_identifier,
                     tx_filter,
                     internal_provider.clone(),
+                    external_provider_map.clone(),
                 )
             })
     };
 
-    transactions_route(internal_provider.clone())
+    transactions_route(internal_provider.clone(), external_provider_map.clone())
 }
 
 pub(crate) fn metrics(
