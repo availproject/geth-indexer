@@ -116,6 +116,8 @@ pub fn get_live_tps(
         }
     }
 
+    tps_pairs.sort_by(|a, b| a.1.cmp(&b.1));
+
     Ok(tps_pairs)
 }
 
@@ -125,13 +127,20 @@ pub fn get_all_chains_live_tps_in_range(
 ) -> redis::RedisResult<Vec<(u64, String)>> {
     let chain_ids: Vec<u64> = redis::cmd("SMEMBERS").arg("chains").query(conn)?;
     let mut all_chains: Vec<Vec<(u64, String)>> = Vec::new();
-    let mut lowest_size = usize::MAX; // Set to max initially
+    let mut max_size = 0;
+    let mut longest_chain: Vec<(u64, String)> = Vec::new();
 
     for chain_id in chain_ids {
         match get_live_tps(&chain_id, stride.clone(), conn) {
-            Ok(chain_sum) => {
-                lowest_size = std::cmp::min(lowest_size, chain_sum.len());
-                all_chains.push(chain_sum);
+            Ok(chain_live_tps) => {
+                tracing::info!("chain_id:{}, chain_live_tps {:?}", chain_id, chain_live_tps);
+
+                if chain_live_tps.len() > max_size {
+                    max_size = chain_live_tps.len();
+                    longest_chain = chain_live_tps.clone();
+                }
+
+                all_chains.push(chain_live_tps);
             }
             Err(e) => {
                 return Err(e);
@@ -139,21 +148,19 @@ pub fn get_all_chains_live_tps_in_range(
         }
     }
 
-    tracing::info!(" all_chain {:?}", all_chains);
+    let mut final_chain_live_tps = vec![(0, String::new()); max_size];
 
-    let mut final_chain_live_tps = Vec::with_capacity(lowest_size);
+    for chain in &all_chains {
+        let offset = max_size - chain.len();
+        for (i, &(val, ref ts)) in chain.iter().enumerate() {
+            final_chain_live_tps[offset + i].0 += val; // Sum the values
+        }
+    }
 
-    for i in 0..lowest_size {
-        let (value, timestamp) = all_chains
-            .iter()
-            .filter_map(|chain| chain.get(i))
-            .fold((0, None), |(sum, _), &(val, ref ts)| {
-                (sum + val, Some(ts.clone()))
-            });
-
-        tracing::info!("value:{}, timestamp:{:?}", value, timestamp);
-        if let Some(ts) = timestamp {
-            final_chain_live_tps.push((value, ts));
+    // Assign timestamps from the longest chain
+    for i in 0..max_size {
+        if let Some((_, ref ts)) = longest_chain.get(i) {
+            final_chain_live_tps[i].1 = ts.clone();
         }
     }
 
