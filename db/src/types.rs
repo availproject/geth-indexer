@@ -108,7 +108,7 @@ pub struct Stride {
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Type {
-    pub inner: Option<Tx>,
+    pub tx_type: Option<Tx>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]

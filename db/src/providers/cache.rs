@@ -124,7 +124,7 @@ pub fn get_live_tps(
         stride = 600;
     }
 
-    let raw = if let Some(Tx::CrossChain) = tx_type.inner {
+    let raw = if let Some(Tx::CrossChain) = tx_type.tx_type {
         let total_x_chain_txns_key = format!("chain:{}:total_x_chain", chain_id);
         let raw: Vec<String> = redis::cmd("ZRANGEBYSCORE")
             .arg(&total_x_chain_txns_key)
@@ -133,7 +133,7 @@ pub fn get_live_tps(
             .arg("WITHSCORES")
             .query(conn)?;
         raw
-    } else if let Some(Tx::Native) = tx_type.inner {
+    } else if let Some(Tx::Native) = tx_type.tx_type {
         let total_x_chain_txns_key = format!("chain:{}:total_native", chain_id);
         let raw: Vec<String> = redis::cmd("ZRANGEBYSCORE")
             .arg(&total_x_chain_txns_key)
@@ -226,9 +226,9 @@ pub fn get_latest_tps(
     tx_type: Type,
     conn: &mut redis::Connection,
 ) -> RedisResult<u64> {
-    let tps_key = if let Some(Tx::CrossChain) = tx_type.inner {
+    let tps_key = if let Some(Tx::CrossChain) = tx_type.tx_type {
         format!("chain:{}:xtps", chain_id)
-    } else if let Some(Tx::Native) = tx_type.inner {
+    } else if let Some(Tx::Native) = tx_type.tx_type {
         format!("chain:{}:ntps", chain_id)
     } else {
         format!("chain:{}:tps", chain_id)
@@ -246,7 +246,7 @@ pub fn get_successful_xfers_in_range(
     tx_type: Type,
     conn: &mut redis::Connection,
 ) -> RedisResult<u64> {
-    let raw = if let Some(Tx::CrossChain) = tx_type.inner {
+    let raw = if let Some(Tx::CrossChain) = tx_type.tx_type {
         let total_x_chain_txns_key = format!("chain:{}:total_x_chain", chain_id);
         let raw: Vec<String> = redis::cmd("ZRANGEBYSCORE")
             .arg(&total_x_chain_txns_key)
@@ -255,7 +255,7 @@ pub fn get_successful_xfers_in_range(
             .arg("WITHSCORES")
             .query(conn)?;
         raw
-    } else if let Some(Tx::Native) = tx_type.inner {
+    } else if let Some(Tx::Native) = tx_type.tx_type {
         let total_x_chain_txns_key = format!("chain:{}:total_native", chain_id);
         let raw: Vec<String> = redis::cmd("ZRANGEBYSCORE")
             .arg(&total_x_chain_txns_key)

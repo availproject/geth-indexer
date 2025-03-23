@@ -75,7 +75,7 @@ pub(crate) async fn catch_up_blocks(
                     };
 
                 info!(
-                    "current height {} validator height {}, total_xfers {} failed_xfers {} native_txns {}. x_chain_xfers {}, chain id {} ",
+                    "current height {} validator height {}, total_xfers {}, failed_xfers {}, native_txns {}. x_chain_xfers {}, chain id {}",
                     current_block.header.number, validator_max_height, total_xfers, failed_xfers, total_native_transfers, total_x_chain_transfers, chain_id,
                 );
 
