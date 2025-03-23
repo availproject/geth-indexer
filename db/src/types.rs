@@ -1,6 +1,11 @@
-use alloy::primitives::{hex::ToHexExt, Address, Bloom, Bytes, FixedBytes, U256, U64};
+use alloy::primitives::{
+    hex::ToHexExt, Address, Bloom, Bytes, FixedBytes, Log as PrimitiveLog, U256, U64,
+};
 use alloy::rpc::types::eth::Transaction;
+use alloy::rpc::types::TransactionReceipt;
 use alloy::signers::k256::ecdsa::SigningKey;
+use alloy::sol;
+use alloy::sol_types::SolEvent;
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -102,6 +107,29 @@ pub struct Stride {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
+pub struct Type {
+    pub inner: Option<Tx>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
+pub enum Tx {
+    Native,
+    CrossChain,
+}
+
+impl std::str::FromStr for Tx {
+    type Err = serde_json::Error;
+
+    fn from_str(input: &str) -> Result<Tx, Self::Err> {
+        match input {
+            "native" => Ok(Tx::Native),
+            "cross_chain" => Ok(Tx::CrossChain),
+            _ => Ok(Tx::Native),
+        }
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Limit {
     pub limit: Option<u64>,
 }
@@ -146,14 +174,18 @@ pub struct TxnSummary {
 
 impl From<Transaction> for TxnSummary {
     fn from(tx: Transaction) -> Self {
-        TxnSummary { 
-            hash: tx.hash.to_hex_string(), 
-            block_hash: Some(tx.block_hash.unwrap().to_hex_string()), 
-            to: if tx.to.is_none() { None } else { Some(tx.to.unwrap().to_hex_string()) },
-            from: tx.from.to_hex_string(), 
-            status: Some(1), 
-            value: tx.value.to_hex_string(), 
-            block_height: tx.block_number.unwrap(), 
+        TxnSummary {
+            hash: tx.hash.to_hex_string(),
+            block_hash: Some(tx.block_hash.unwrap().to_hex_string()),
+            to: if tx.to.is_none() {
+                None
+            } else {
+                Some(tx.to.unwrap().to_hex_string())
+            },
+            from: tx.from.to_hex_string(),
+            status: Some(1),
+            value: tx.value.to_hex_string(),
+            block_height: tx.block_number.unwrap(),
         }
     }
 }
@@ -162,6 +194,43 @@ impl From<Transaction> for TxnSummary {
 pub enum TxAPIResponse {
     TxnSummary(TxnSummary),
     Transaction(Transaction),
+}
+
+sol! {
+    #[derive(Debug)]
+    event ETHReceivedFromSourceChainInBatch(
+        uint32 indexed sourceChainId,
+        address[] recipients,
+        uint256[] amounts,
+        uint32 startMessageId,
+        uint32 indexed endMessageId
+    );
+}
+
+pub fn parse_logs(receipt: &TransactionReceipt) -> (bool, u32) {
+    let signature_bytes: FixedBytes<32> = ETHReceivedFromSourceChainInBatch::SIGNATURE_HASH;
+    for log in receipt.inner.logs() {
+        let primitive_log = PrimitiveLog {
+            address: log.address(),
+            data: log.data().clone(),
+        };
+
+        if log.topics()[0] == signature_bytes {
+            if let Ok(event) = ETHReceivedFromSourceChainInBatch::decode_log(&primitive_log, false)
+            {
+                tracing::info!("Source Chain ID: {:?}", event.sourceChainId);
+                tracing::info!("Recipients: {:?}", event.recipients);
+                tracing::info!("Amounts: {:?}", event.amounts);
+                tracing::info!("Start Message ID: {:?}", event.startMessageId);
+                tracing::info!("End Message ID: {:?}", event.endMessageId);
+                return (true, event.endMessageId - event.startMessageId);
+            } else {
+                return (false, 0);
+            }
+        }
+    }
+
+    return (false, 0);
 }
 
 pub trait ToHexString {

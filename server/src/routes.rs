@@ -47,7 +47,7 @@ pub(crate) fn transactions(
                     tx_hash_str
                 )))
             })?;
-        
+
             if let Some(chain_id) = tx_filter.chain_id {
                 let provider = external_provider_map.get(&chain_id).ok_or_else(|| {
                     warp::reject::custom(IndexerError::ProviderError(format!(
@@ -55,7 +55,7 @@ pub(crate) fn transactions(
                         chain_id
                     )))
                 })?;
-        
+
                 let tx = provider
                     .get_transaction_by_hash(hash)
                     .await
@@ -71,10 +71,10 @@ pub(crate) fn transactions(
                             chain_id
                         )))
                     })?;
-        
+
                 return Ok(warp::reply::json(&vec![TxAPIResponse::Transaction(tx)]));
             }
-        
+
             for (_chain_id, provider) in external_provider_map {
                 match provider.get_transaction_by_hash(hash).await {
                     Ok(Some(tx)) => {
@@ -87,7 +87,7 @@ pub(crate) fn transactions(
                 }
             }
         }
-        
+
         let tx_responses = match internal_provider
             .get_txs(tx_identifier, tx_filter, parts, limit)
             .await
@@ -103,25 +103,27 @@ pub(crate) fn transactions(
         Ok(warp::reply::json(&tx_responses))
     }
 
-    let transactions_route = |internal_provider: Arc<InternalDataProvider>, external_provider_map: BTreeMap<u64, ExternalProvider>| {
-        warp::get()
-            .and(warp::path("transactions"))
-            .and(warp::query::<TxIdentifier>())
-            .and(warp::query::<TxFilter>())
-            .and(warp::query::<Parts>())
-            .and(warp::query::<Limit>())
-            .and(warp::path::end())
-            .and_then(move |tx_identifier, tx_filter, parts, limit| {
-                get_transactions(
-                    limit,
-                    parts,
-                    tx_identifier,
-                    tx_filter,
-                    internal_provider.clone(),
-                    external_provider_map.clone(),
-                )
-            })
-    };
+    let transactions_route =
+        |internal_provider: Arc<InternalDataProvider>,
+         external_provider_map: BTreeMap<u64, ExternalProvider>| {
+            warp::get()
+                .and(warp::path("transactions"))
+                .and(warp::query::<TxIdentifier>())
+                .and(warp::query::<TxFilter>())
+                .and(warp::query::<Parts>())
+                .and(warp::query::<Limit>())
+                .and(warp::path::end())
+                .and_then(move |tx_identifier, tx_filter, parts, limit| {
+                    get_transactions(
+                        limit,
+                        parts,
+                        tx_identifier,
+                        tx_filter,
+                        internal_provider.clone(),
+                        external_provider_map.clone(),
+                    )
+                })
+        };
 
     transactions_route(internal_provider.clone(), external_provider_map.clone())
 }
@@ -134,6 +136,7 @@ pub(crate) fn metrics(
         provider: Arc<InternalDataProvider>,
         identifier: ChainId,
         stride: Stride,
+        tx_type: Type,
     ) -> Result<impl warp::Reply, warp::Rejection> {
         let performance_metric: Metric = match Metric::from_str(&metric) {
             Ok(f) => f,
@@ -145,7 +148,7 @@ pub(crate) fn metrics(
         match performance_metric {
             Metric::CurrentTPS => {
                 let tps = provider
-                    .current_tps(identifier)
+                    .current_tps(identifier, tx_type)
                     .await
                     .map_err(|e| IndexerError::RedisError(e))?;
 
@@ -153,28 +156,28 @@ pub(crate) fn metrics(
             }
             Metric::TransactionVolume => {
                 let tx_volume = provider
-                    .transaction_volume(identifier)
+                    .transaction_volume(identifier, tx_type)
                     .await
                     .map_err(|e| IndexerError::RedisError(e))?;
                 Ok(warp::reply::json(&tx_volume))
             }
             Metric::TotalTransactions => {
                 let total_txns = provider
-                    .total_xfers_last_day(identifier)
+                    .total_xfers_last_day(identifier, tx_type)
                     .await
                     .map_err(|e| IndexerError::RedisError(e))?;
                 Ok(warp::reply::json(&total_txns))
             }
             Metric::SuccessfulTransfers => {
                 let successful_xfers = provider
-                    .successful_xfers_last_day(identifier)
+                    .successful_xfers_last_day(identifier, tx_type)
                     .await
                     .map_err(|e| IndexerError::RedisError(e))?;
                 Ok(warp::reply::json(&successful_xfers))
             }
             Metric::LiveTPS => {
                 let tps = provider
-                    .live_tps(identifier, stride)
+                    .live_tps(identifier, stride, tx_type)
                     .await
                     .map_err(|e| IndexerError::RedisError(e))?;
 
@@ -188,9 +191,10 @@ pub(crate) fn metrics(
             .and(warp::get())
             .and(warp::query::<ChainId>())
             .and(warp::query::<Stride>())
+            .and(warp::query::<Type>())
             .and(warp::path::end())
-            .and_then(move |metric, identifier, stride| {
-                get_metrics(metric, Arc::clone(&provider), identifier, stride)
+            .and_then(move |metric, identifier, stride, tx_type| {
+                get_metrics(metric, Arc::clone(&provider), identifier, stride, tx_type)
             })
     };
 

@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 async-std = { workspace = true }
-alloy = { workspace = true, features = ["json-rpc", "rpc"] }
+alloy = { workspace = true, features = ["json-rpc", "json-abi", "rpc", "contract"] }
 warp = { workspace = true, features = ["tls"] }
 bytes = { workspace = true }
 clap = { workspace = true }

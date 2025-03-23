@@ -1,14 +1,3 @@
-use crate::schema::chains::dsl::chains as chains_schema;
-use crate::schema::transactions::dsl::{
-    self as transactions_schema_types, transactions as transactions_schema,
-};
-use crate::TxAPIResponse;
-use crate::TxIdentifier;
-use crate::TxResponse;
-use crate::{cache::*, ChainId, DatabaseConnections};
-use crate::{unix_ms_to_ist, TransactionModel};
-use crate::{Chain, Parts, TxFilter, TxnSummary};
-use crate::{Limit, Stride};
 use alloy::rpc::types::eth::Transaction as AlloyTx;
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
@@ -17,6 +6,18 @@ use rayon::prelude::*;
 use redis::RedisResult;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::task;
+
+use crate::schema::chains::dsl::chains as chains_schema;
+use crate::schema::transactions::dsl::{
+    self as transactions_schema_types, transactions as transactions_schema,
+};
+use crate::TxIdentifier;
+use crate::TxResponse;
+use crate::{cache::*, ChainId, DatabaseConnections};
+use crate::{unix_ms_to_ist, TransactionModel};
+use crate::{Chain, Parts, TxFilter, TxnSummary};
+use crate::{Limit, Stride};
+use crate::{TxAPIResponse, Type};
 
 #[derive(Clone)]
 pub struct InternalDataProvider {
@@ -164,6 +165,8 @@ impl InternalDataProvider {
         timestamp: i64,
         successful_xfers: u64,
         total_xfers: u64,
+        total_native_transfers: u64,
+        total_x_chain_transfers: u64,
         tx_count: usize,
         height: u64,
     ) -> RedisResult<()> {
@@ -174,6 +177,8 @@ impl InternalDataProvider {
                 timestamp,
                 successful_xfers,
                 total_xfers,
+                total_native_transfers,
+                total_x_chain_transfers,
                 tx_count as u64,
                 height,
                 &mut redis_conn,
@@ -197,26 +202,27 @@ impl InternalDataProvider {
         &self,
         identifier: ChainId,
         stride: Stride,
+        tx_type: Type,
     ) -> RedisResult<Vec<(u64, String)>> {
         let tps_with_timestamps = {
             let mut redis_conn = self.dbc.redis.lock().await;
             if let Some(chain_id) = identifier.chain_id {
-                get_live_tps(&chain_id, stride, &mut redis_conn)?
+                get_live_tps(&chain_id, stride, tx_type, &mut redis_conn)?
             } else {
-                get_all_chains_live_tps_in_range(stride, &mut redis_conn)?
+                get_all_chains_live_tps_in_range(stride, tx_type, &mut redis_conn)?
             }
         };
 
         Ok(tps_with_timestamps)
     }
 
-    pub async fn current_tps(&self, identifier: ChainId) -> RedisResult<u64> {
+    pub async fn current_tps(&self, identifier: ChainId, tx_type: Type) -> RedisResult<u64> {
         let tps = {
             let mut redis_conn = self.dbc.redis.lock().await;
             let tps = if let Some(chain_id) = identifier.chain_id {
-                get_latest_tps(&chain_id, &mut redis_conn)?
+                get_latest_tps(&chain_id, tx_type, &mut redis_conn)?
             } else {
-                get_all_chains_tps_in_range(&mut redis_conn)?
+                get_all_chains_tps_in_range(tx_type, &mut redis_conn)?
             };
             tps as u64
         };
@@ -224,13 +230,23 @@ impl InternalDataProvider {
         Ok(tps)
     }
 
-    pub async fn total_xfers_last_day(&self, identifier: ChainId) -> RedisResult<u64> {
+    pub async fn total_xfers_last_day(
+        &self,
+        identifier: ChainId,
+        tx_type: Type,
+    ) -> RedisResult<u64> {
         let tps = {
             let mut redis_conn = self.dbc.redis.lock().await;
             let tps = if let Some(chain_id) = identifier.chain_id {
                 let latest_timestamp = get_latest_timestamp(&chain_id, &mut redis_conn)?;
 
-                get_successful_xfers_in_range(&chain_id, 86400, latest_timestamp, &mut redis_conn)?
+                get_successful_xfers_in_range(
+                    &chain_id,
+                    86400,
+                    latest_timestamp,
+                    tx_type,
+                    &mut redis_conn,
+                )?
             } else {
                 let now_duration = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
@@ -239,6 +255,7 @@ impl InternalDataProvider {
                 get_all_chains_success_xfers_in_range(
                     86400,
                     now_duration.as_secs() as i64,
+                    tx_type,
                     &mut redis_conn,
                 )?
             };
@@ -249,13 +266,23 @@ impl InternalDataProvider {
         Ok(tps)
     }
 
-    pub async fn successful_xfers_last_day(&self, identifier: ChainId) -> RedisResult<u64> {
+    pub async fn successful_xfers_last_day(
+        &self,
+        identifier: ChainId,
+        tx_type: Type,
+    ) -> RedisResult<u64> {
         let xfers = {
             let mut redis_conn = self.dbc.redis.lock().await;
             let xfers = if let Some(chain_id) = identifier.chain_id {
                 let latest_timestamp = get_latest_timestamp(&chain_id, &mut redis_conn)?;
-                get_successful_xfers_in_range(&chain_id, 86400, latest_timestamp, &mut redis_conn)
-                    .unwrap_or(0)
+                get_successful_xfers_in_range(
+                    &chain_id,
+                    86400,
+                    latest_timestamp,
+                    tx_type,
+                    &mut redis_conn,
+                )
+                .unwrap_or(0)
             } else {
                 let now_duration = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
@@ -263,6 +290,7 @@ impl InternalDataProvider {
                 get_all_chains_success_xfers_in_range(
                     86400,
                     now_duration.as_secs() as i64,
+                    tx_type,
                     &mut redis_conn,
                 )
                 .unwrap_or(0)
@@ -274,7 +302,11 @@ impl InternalDataProvider {
         Ok(xfers)
     }
 
-    pub async fn transaction_volume(&self, identifier: ChainId) -> RedisResult<Vec<TxResponse>> {
+    pub async fn transaction_volume(
+        &self,
+        identifier: ChainId,
+        tx_type: Type,
+    ) -> RedisResult<Vec<TxResponse>> {
         let mut tx_response = Vec::new();
 
         {
@@ -288,6 +320,7 @@ impl InternalDataProvider {
                         &chain_id,
                         i * interval,
                         latest_timestamp.saturating_sub((i - 1) * interval),
+                        tx_type.clone(),
                         &mut redis_conn,
                     )
                     .unwrap_or(0);
@@ -307,6 +340,7 @@ impl InternalDataProvider {
                     let success = get_all_chains_success_xfers_in_range(
                         i * interval,
                         latest_timestamp.saturating_sub((i - 1) * interval),
+                        tx_type.clone(),
                         &mut redis_conn,
                     )
                     .unwrap_or(0);

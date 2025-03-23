@@ -16,6 +16,9 @@ alloy = { workspace = true, features = [
     "signer-local",
     "signer-mnemonic",
     "transports",
+    "json-rpc", 
+    "json-abi",
+    "contract",
 ] }
 chrono = { workspace = true, features = ["serde"] }
 redis = { workspace = true, features = ["tls"] }

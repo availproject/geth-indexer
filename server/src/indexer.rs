@@ -16,7 +16,11 @@ pub struct Indexer {
 }
 
 impl Indexer {
-    pub async fn new(config: IndexerConfig, internal_provider: Arc<InternalDataProvider>, external_providers: BTreeMap<u64, ExternalProvider>) -> Self {
+    pub async fn new(
+        config: IndexerConfig,
+        internal_provider: Arc<InternalDataProvider>,
+        external_providers: BTreeMap<u64, ExternalProvider>,
+    ) -> Self {
         let mut chain_ids = Vec::new();
         let mut indexer_heights = BTreeMap::new();
 

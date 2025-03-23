@@ -1,10 +1,15 @@
 use alloy::providers::{Provider, ProviderBuilder};
 use db::provider::InternalDataProvider;
-use tracing::info;
 use std::{collections::BTreeMap, sync::Arc};
+use tracing::info;
 use warp::Filter;
 
-use crate::{config::IndexerConfig, error::handle_rejection, indexer::{ExternalProvider, Indexer}, routes::*};
+use crate::{
+    config::IndexerConfig,
+    error::handle_rejection,
+    indexer::{ExternalProvider, Indexer},
+    routes::*,
+};
 
 pub(crate) struct Server {
     config: IndexerConfig,
@@ -36,15 +41,22 @@ impl Server {
 
     pub async fn start(self) -> Result<(), std::io::Error> {
         let listening_port = self.config.listening_port.clone();
-        let _ = Indexer::new(self.config, self.internal_data_provider.clone(), self.external_providers.clone())
-            .await
-            .run()
-            .await;
+        let _ = Indexer::new(
+            self.config,
+            self.internal_data_provider.clone(),
+            self.external_providers.clone(),
+        )
+        .await
+        .run()
+        .await;
 
         let warp_serve = warp::serve(
             index_route()
                 .or(metrics(self.internal_data_provider.clone()))
-                .or(transactions(self.internal_data_provider.clone(), self.external_providers.clone()))
+                .or(transactions(
+                    self.internal_data_provider.clone(),
+                    self.external_providers.clone(),
+                ))
                 .recover(handle_rejection)
                 .with(warp::cors().allow_any_origin()),
         );
