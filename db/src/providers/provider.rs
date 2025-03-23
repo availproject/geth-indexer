@@ -4,6 +4,7 @@ use diesel_async::RunQueryDsl;
 use futures::future::join_all;
 use rayon::prelude::*;
 use redis::RedisResult;
+use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::task;
 
@@ -11,12 +12,12 @@ use crate::schema::chains::dsl::chains as chains_schema;
 use crate::schema::transactions::dsl::{
     self as transactions_schema_types, transactions as transactions_schema,
 };
-use crate::TxIdentifier;
 use crate::TxResponse;
 use crate::{cache::*, ChainId, DatabaseConnections};
 use crate::{unix_ms_to_ist, TransactionModel};
 use crate::{Chain, Parts, TxFilter, TxnSummary};
 use crate::{Limit, Stride};
+use crate::{ToHexString, Tx, TxIdentifier};
 use crate::{TxAPIResponse, Type};
 
 #[derive(Clone)]
@@ -36,6 +37,7 @@ impl InternalDataProvider {
         identifier: TxIdentifier,
         filter: TxFilter,
         parts: Parts,
+        tx_type: Type,
         limit: Limit,
     ) -> Result<Vec<TxAPIResponse>, std::io::Error> {
         let mut conn = self
@@ -52,6 +54,9 @@ impl InternalDataProvider {
         }
         if let Some(tx_hash) = identifier.tx_hash.as_ref() {
             query = query.filter(transactions_schema_types::transaction_hash.eq(tx_hash));
+        }
+        if let Some(tx) = tx_type.tx_type.as_ref() {
+            query = query.filter(transactions_schema_types::tx_type.eq(tx.to_string()));
         }
 
         let result: Vec<TransactionModel> = query
@@ -91,6 +96,7 @@ impl InternalDataProvider {
         chain_id: u64,
         tx_count: usize,
         transactions: Vec<AlloyTx>,
+        tx_map: BTreeMap<String, Tx>,
     ) -> Result<(), std::io::Error> {
         let txns: Vec<TransactionModel> = transactions
             .iter()
@@ -98,7 +104,12 @@ impl InternalDataProvider {
             .cloned()
             .collect::<Vec<_>>()
             .into_par_iter()
-            .map(|transaction| TransactionModel::from(chain_id, &transaction))
+            .map(|transaction| {
+                let tx_type = tx_map
+                    .get(&transaction.hash.to_hex_string())
+                    .unwrap_or(&Tx::Native);
+                TransactionModel::from(chain_id, &transaction, tx_type)
+            })
             .collect();
 
         {

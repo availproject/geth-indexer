@@ -1,4 +1,4 @@
-use crate::types::ToHexString;
+use crate::{types::ToHexString, Tx};
 use alloy::{
     primitives::U256,
     rpc::types::eth::{Parity, Signature, Transaction as AlloyTransaction},
@@ -61,6 +61,7 @@ pub struct TransactionModel {
     pub impersonated: bool,
     pub max_priority_fee_per_gas: Option<String>,
     pub max_fee_per_gas: Option<String>,
+    pub tx_type: String,
 }
 
 impl From<TransactionModel> for AlloyTransaction {
@@ -112,8 +113,9 @@ impl From<TransactionModel> for AlloyTransaction {
 }
 
 impl TransactionModel {
-    pub fn from(chain_id: u64, value: &AlloyTransaction) -> Self {
+    pub fn from(chain_id: u64, value: &AlloyTransaction, tx_type: &Tx) -> Self {
         let result = Self {
+            tx_type: tx_type.to_string(),
             chain_id: chain_id.try_into().unwrap(),
             transaction_hash: value.hash.to_hex_string(),
             transaction_nonce: value.nonce.to_hex_string(),

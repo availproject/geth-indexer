@@ -30,6 +30,7 @@ diesel::table! {
         max_fee_per_gas -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        tx_type -> Text,
     }
 }
 

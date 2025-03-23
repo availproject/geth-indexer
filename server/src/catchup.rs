@@ -2,10 +2,11 @@ use alloy::eips::BlockNumberOrTag;
 use alloy::providers::Provider;
 use alloy::rpc::types::Block;
 use async_std::task::sleep;
-use db::parse_logs;
 use db::provider::InternalDataProvider;
 use db::ToHexString;
+use db::{parse_logs, Tx};
 use futures::stream::{FuturesUnordered, StreamExt};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time;
 use tokio::task;
@@ -114,6 +115,7 @@ pub async fn process_block(
     let mut total_native_transfers = 0;
     let mut total_x_chain_transfers = 0;
     let transactions: Vec<_> = block.transactions.txns().cloned().collect();
+    let mut tx_map = BTreeMap::new();
     let tasks: FuturesUnordered<_> = transactions
         .iter()
         .map(|tx| {
@@ -130,7 +132,20 @@ pub async fn process_block(
                     let is_transfer = (tx.input.is_empty() || tx.input.to_hex_string() == "0x")
                         && tx.to.is_some();
                     let (_, xtps) = parse_logs(&receipt);
-                    Some((1, is_failed as u64, is_transfer as u64, xtps as u64))
+                    let tx_hash = tx.hash.to_hex_string();
+                    let tx_type = if is_transfer {
+                        Tx::Native
+                    } else {
+                        Tx::CrossChain
+                    };
+                    Some((
+                        1,
+                        is_failed as u64,
+                        is_transfer as u64,
+                        xtps as u64,
+                        tx_hash,
+                        tx_type,
+                    ))
                 } else {
                     None
                 }
@@ -140,18 +155,19 @@ pub async fn process_block(
 
     let results = tasks.collect::<Vec<_>>().await;
     for result in results {
-        if let Ok(Some((t, f, native_xfers, cross_chain_xfers))) = result {
+        if let Ok(Some((t, f, native_xfers, cross_chain_xfers, tx_hash, tx_type))) = result {
             total += t;
             failed += f;
             total_native_transfers += native_xfers;
             total_x_chain_transfers += cross_chain_xfers;
+            tx_map.insert(tx_hash, tx_type);
         }
     }
 
     let chain_id = chain_id.clone();
     tokio::spawn(async move {
         if let Err(e) = internal_provider
-            .add_txns(chain_id, transactions.len(), transactions)
+            .add_txns(chain_id, transactions.len(), transactions, tx_map)
             .await
         {
             tracing::error!("{}", e.to_string());

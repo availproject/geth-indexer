@@ -21,6 +21,7 @@ pub(crate) fn transactions(
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     pub async fn get_transactions(
         limit: Limit,
+        tx_type: Type,
         parts: Parts,
         tx_identifier: TxIdentifier,
         tx_filter: TxFilter,
@@ -89,7 +90,7 @@ pub(crate) fn transactions(
         }
 
         let tx_responses = match internal_provider
-            .get_txs(tx_identifier, tx_filter, parts, limit)
+            .get_txs(tx_identifier, tx_filter, parts, tx_type, limit)
             .await
         {
             Ok(transactions) => transactions,
@@ -111,11 +112,13 @@ pub(crate) fn transactions(
                 .and(warp::query::<TxIdentifier>())
                 .and(warp::query::<TxFilter>())
                 .and(warp::query::<Parts>())
+                .and(warp::query::<Type>())
                 .and(warp::query::<Limit>())
                 .and(warp::path::end())
-                .and_then(move |tx_identifier, tx_filter, parts, limit| {
+                .and_then(move |tx_identifier, tx_filter, parts, tx_type, limit| {
                     get_transactions(
                         limit,
+                        tx_type,
                         parts,
                         tx_identifier,
                         tx_filter,

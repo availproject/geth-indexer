@@ -1,3 +1,5 @@
+use std::fmt;
+
 use alloy::primitives::{
     hex::ToHexExt, Address, Bloom, Bytes, FixedBytes, Log as PrimitiveLog, U256, U64,
 };
@@ -129,6 +131,16 @@ impl std::str::FromStr for Tx {
     }
 }
 
+impl fmt::Display for Tx {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Tx::Native => "native",
+            Tx::CrossChain => "cross_chain",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Limit {
     pub limit: Option<u64>,
@@ -218,9 +230,6 @@ pub fn parse_logs(receipt: &TransactionReceipt) -> (bool, u32) {
         if log.topics()[0] == signature_bytes {
             if let Ok(event) = ETHReceivedFromSourceChainInBatch::decode_log(&primitive_log, false)
             {
-                tracing::info!("Source Chain ID: {:?}", event.sourceChainId);
-                tracing::info!("Recipients: {:?}", event.recipients);
-                tracing::info!("Amounts: {:?}", event.amounts);
                 tracing::info!("Start Message ID: {:?}", event.startMessageId);
                 tracing::info!("End Message ID: {:?}", event.endMessageId);
                 return (true, event.endMessageId - event.startMessageId);
