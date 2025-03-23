@@ -79,7 +79,7 @@ pub fn add_block(
 
     redis::cmd("SET")
         .arg(&native_chain_tps_key)
-        .arg(native_chain_tps_key)
+        .arg(total_native_transfers)
         .query::<()>(conn)?;
 
     redis::cmd("SET")
