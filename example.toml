@@ -8,4 +8,4 @@ geth_endpoints = [
     "http://35.188.240.101:8845"
 ]
 
-indexer_start_heights = [-1, -1, -1, -1, -1]
+indexer_start_heights = [-1, -1, -1, 74900, 74600]
