@@ -134,29 +134,22 @@ pub async fn process_block(
                 {
                     let is_failed = !receipt.status();
                     let (_, xtps) = parse_logs(&receipt);
-                    Some((
-                        1,
-                        is_failed as u64,
-                        is_transfer as u64,
-                        xtps as u64,
-                        tx_hash,
-                        Tx::CrossChain,
-                    ))
+                    Some((1, is_failed as u64, xtps as u64, tx_hash, Tx::CrossChain))
                 } else {
                     None
                 }
             } else {
-                Some((1, 0, is_transfer as u64, 0, tx_hash, Tx::Native))
+                Some((1, 0, 0, tx_hash, Tx::Native))
             }
         })
         .collect();
 
     let results = tasks.collect::<Vec<_>>().await;
     for result in results {
-        if let Some((t, f, native_xfers, cross_chain_xfers, tx_hash, tx_type)) = result {
+        if let Some((t, f, cross_chain_xfers, tx_hash, tx_type)) = result {
             total += t;
             failed += f;
-            total_native_transfers += native_xfers;
+            total_native_transfers += if tx_type == Tx::Native { 1 } else { 0 };
             total_x_chain_transfers += cross_chain_xfers;
             tx_map.insert(tx_hash, tx_type);
         }
