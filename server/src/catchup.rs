@@ -118,10 +118,14 @@ pub async fn process_block(
     let mut tx_map = BTreeMap::new();
     let tasks: FuturesUnordered<_> = transactions
         .iter()
-        .map(|tx| {
-            let provider = external_provider.clone();
+        .map(|tx| async move {
             let tx = tx.clone();
-            task::spawn(async move {
+            let is_transfer =
+                (tx.input.is_empty() || tx.input.to_hex_string() == "0x") && tx.to.is_some();
+            let tx_hash = tx.hash.to_hex_string();
+            if !is_transfer {
+                let provider = external_provider.clone();
+
                 if let Some(receipt) = provider
                     .get_transaction_receipt(tx.hash)
                     .await
@@ -129,33 +133,27 @@ pub async fn process_block(
                     .flatten()
                 {
                     let is_failed = !receipt.status();
-                    let is_transfer = (tx.input.is_empty() || tx.input.to_hex_string() == "0x")
-                        && tx.to.is_some();
                     let (_, xtps) = parse_logs(&receipt);
-                    let tx_hash = tx.hash.to_hex_string();
-                    let tx_type = if is_transfer {
-                        Tx::Native
-                    } else {
-                        Tx::CrossChain
-                    };
                     Some((
                         1,
                         is_failed as u64,
                         is_transfer as u64,
                         xtps as u64,
                         tx_hash,
-                        tx_type,
+                        Tx::CrossChain,
                     ))
                 } else {
                     None
                 }
-            })
+            } else {
+                Some((1, 0, is_transfer as u64, 0, tx_hash, Tx::Native))
+            }
         })
         .collect();
 
     let results = tasks.collect::<Vec<_>>().await;
     for result in results {
-        if let Ok(Some((t, f, native_xfers, cross_chain_xfers, tx_hash, tx_type))) = result {
+        if let Some((t, f, native_xfers, cross_chain_xfers, tx_hash, tx_type)) = result {
             total += t;
             failed += f;
             total_native_transfers += native_xfers;
