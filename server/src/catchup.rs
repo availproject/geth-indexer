@@ -134,13 +134,7 @@ pub async fn process_block(
                 {
                     let is_failed = !receipt.status();
                     let (_, xtps) = parse_logs(&receipt);
-                    Some((
-                        1 + xtps,
-                        is_failed as u64,
-                        xtps as u64,
-                        tx_hash,
-                        Tx::CrossChain,
-                    ))
+                    Some((xtps, is_failed as u64, xtps as u64, tx_hash, Tx::CrossChain))
                 } else {
                     None
                 }
