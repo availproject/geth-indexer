@@ -44,12 +44,15 @@ services:
       - indexer_network
   redis:
     image: "redis:alpine"
-    command: redis-server --save "" --appendonly no --requirepass redis --maxmemory 500mb --maxmemory-policy volatile-ttl
+    command: redis-server --save "60 1" --appendonly no --requirepass redis --maxmemory 500mb --maxmemory-policy volatile-ttl
     environment:
       - REDIS_PASSWORD=redis
     ports:
       - 6379:6379
+    volumes:
+      - ./redis-data:/data
     networks:
       - indexer_network
+
 networks:
   indexer_network:

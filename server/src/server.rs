@@ -15,16 +15,20 @@ pub(crate) struct Server {
     config: IndexerConfig,
     external_providers: BTreeMap<u64, ExternalProvider>,
     internal_data_provider: Arc<InternalDataProvider>,
+    inactive_providers: BTreeMap<String, ExternalProvider>,
 }
 
 impl Server {
     pub async fn new(config: IndexerConfig) -> Result<Server, std::io::Error> {
         let mut external_providers = BTreeMap::new();
+        let mut inactive_providers = BTreeMap::new();
+
         for (_idx, endpoint) in config.geth_endpoints.clone().iter().enumerate() {
             let provider = ProviderBuilder::new().on_http(endpoint.parse().unwrap());
             let chain_id = match provider.get_chain_id().await {
                 Ok(id) => id,
                 Err(_) => {
+                    inactive_providers.insert(endpoint.to_string(), provider);
                     info!("chain id should be readable");
                     continue;
                 }
@@ -36,6 +40,7 @@ impl Server {
             config,
             external_providers,
             internal_data_provider: Arc::new(InternalDataProvider::new().await?),
+            inactive_providers,
         })
     }
 
@@ -45,9 +50,10 @@ impl Server {
             self.config,
             self.internal_data_provider.clone(),
             self.external_providers.clone(),
+            self.inactive_providers,
         )
         .await
-        .run()
+        .bootstrap()
         .await;
 
         let warp_serve = warp::serve(

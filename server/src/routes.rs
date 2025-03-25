@@ -159,7 +159,7 @@ pub(crate) fn metrics(
             }
             Metric::TransactionVolume => {
                 let tx_volume = provider
-                    .transaction_volume(identifier, tx_type)
+                    .transaction_volume(identifier, tx_type, stride)
                     .await
                     .map_err(|e| IndexerError::RedisError(e))?;
                 Ok(warp::reply::json(&tx_volume))

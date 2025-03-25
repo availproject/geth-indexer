@@ -1,24 +1,26 @@
+use std::{
+    collections::BTreeMap,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
 use alloy::rpc::types::eth::Transaction as AlloyTx;
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use futures::future::join_all;
 use rayon::prelude::*;
 use redis::RedisResult;
-use std::collections::BTreeMap;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::task;
 
-use crate::schema::chains::dsl::chains as chains_schema;
-use crate::schema::transactions::dsl::{
-    self as transactions_schema_types, transactions as transactions_schema,
+use crate::{
+    cache::*,
+    schema::{
+        chains::dsl::chains as chains_schema,
+        transactions::dsl::{self as transactions_schema_types, transactions as transactions_schema},
+    },
+    Chain, ChainId, DatabaseConnections, Limit, Parts, Stride, ToHexString, TransactionModel,
+    Tx, TxAPIResponse, TxFilter, TxIdentifier, TxResponse, TxnSummary, Type, unix_ms_to_ist,
 };
-use crate::TxResponse;
-use crate::{cache::*, ChainId, DatabaseConnections};
-use crate::{unix_ms_to_ist, TransactionModel};
-use crate::{Chain, Parts, TxFilter, TxnSummary};
-use crate::{Limit, Stride};
-use crate::{ToHexString, Tx, TxIdentifier};
-use crate::{TxAPIResponse, Type};
+
 
 #[derive(Clone)]
 pub struct InternalDataProvider {
@@ -317,15 +319,26 @@ impl InternalDataProvider {
         &self,
         identifier: ChainId,
         tx_type: Type,
+        stride: Stride,
     ) -> RedisResult<Vec<TxResponse>> {
         let mut tx_response = Vec::new();
 
         {
             let mut redis_conn = self.dbc.redis.lock().await;
-            let interval: i64 = 900; // 15 min in seconds
+            let (interval, width) = if let Some(stride) = stride.stride {
+                if stride == 1 { // 1 min
+                    (1, 60) // interval: 1 sec (1 * 60s = 1 min)
+                } else { // 10 min
+                    (120, 5) // interval: 1 min (120 * 5s = 10 min)
+                }
+            } else {
+                (900, 96) // interval: 15 min (96 * 15min = 24hr)
+            };
+
             if let Some(chain_id) = identifier.chain_id {
                 let latest_timestamp = get_latest_timestamp(&chain_id, &mut redis_conn)?;
-                for i in 1..96 {
+
+                for i in 1..width {
                     // 96 times, so iterate till last 24 hr data (96 * 15min = 24hr)
                     let success = get_successful_xfers_in_range(
                         &chain_id,
@@ -347,7 +360,7 @@ impl InternalDataProvider {
                     .duration_since(UNIX_EPOCH)
                     .expect("SystemTime before UNIX EPOCH!");
                 let latest_timestamp = now_duration.as_secs() as i64;
-                for i in 1..96 {
+                for i in 1..width {
                     let success = get_all_chains_success_xfers_in_range(
                         i * interval,
                         latest_timestamp.saturating_sub((i - 1) * interval),
