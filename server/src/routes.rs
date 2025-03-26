@@ -150,10 +150,7 @@ pub(crate) fn metrics(
 
         match performance_metric {
             Metric::CurrentTPS => {
-                let tps = provider
-                    .current_tps(identifier, tx_type)
-                    .await
-                    .map_err(|e| IndexerError::RedisError(e))?;
+                let tps = provider.current_tps(identifier, tx_type).await.unwrap_or(0);
 
                 Ok(warp::reply::json(&tps))
             }
@@ -161,29 +158,28 @@ pub(crate) fn metrics(
                 let tx_volume = provider
                     .transaction_volume(identifier, tx_type, stride)
                     .await
-                    .map_err(|e| IndexerError::RedisError(e))?;
+                    .unwrap_or(Vec::new());
                 Ok(warp::reply::json(&tx_volume))
             }
             Metric::TotalTransactions => {
                 let total_txns = provider
                     .total_xfers_last_day(identifier, tx_type)
                     .await
-                    .map_err(|e| IndexerError::RedisError(e))?;
+                    .unwrap_or(0);
                 Ok(warp::reply::json(&total_txns))
             }
             Metric::SuccessfulTransfers => {
                 let successful_xfers = provider
                     .successful_xfers_last_day(identifier, tx_type)
                     .await
-                    .map_err(|e| IndexerError::RedisError(e))?;
+                    .unwrap_or(0);
                 Ok(warp::reply::json(&successful_xfers))
             }
             Metric::LiveTPS => {
                 let tps = provider
                     .live_tps(identifier, stride, tx_type)
                     .await
-                    .map_err(|e| IndexerError::RedisError(e))?;
-
+                    .unwrap_or(Vec::new());
                 Ok(warp::reply::json(&tps))
             }
         }

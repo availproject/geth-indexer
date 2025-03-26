@@ -1,6 +1,6 @@
 use crate::{types::ToHexString, Tx};
 use alloy::{
-    primitives::U256,
+    primitives::{Address, FixedBytes, Uint, U256},
     rpc::types::eth::{Parity, Signature, Transaction as AlloyTransaction},
 };
 use diesel::prelude::*;
@@ -66,10 +66,10 @@ pub struct TransactionModel {
 
 impl From<TransactionModel> for AlloyTransaction {
     fn from(value: TransactionModel) -> Self {
-        let v = value.v.parse().unwrap();
+        let v = value.v.parse().unwrap_or(Uint::default());
         let signature = Some(Signature {
-            r: value.r.parse().unwrap(),
-            s: value.s.parse().unwrap(),
+            r: value.r.parse().unwrap_or(Uint::default()),
+            s: value.s.parse().unwrap_or(Uint::default()),
             v,
             y_parity: if v.to::<u64>() < 2 {
                 Some(Parity(v.to()))
@@ -78,17 +78,19 @@ impl From<TransactionModel> for AlloyTransaction {
             },
         });
         Self {
-            hash: value.transaction_hash.parse().unwrap(),
+            hash: value.transaction_hash.parse().unwrap_or(FixedBytes::ZERO),
             nonce: value
                 .transaction_nonce
                 .parse::<U256>()
                 .unwrap_or_default()
                 .to(),
-            block_hash: value.block_hash.map(|x| x.parse().unwrap()),
-            block_number: Some(value.block_number.unwrap() as u64),
+            block_hash: value
+                .block_hash
+                .map(|x| x.parse().unwrap_or(FixedBytes::ZERO)),
+            block_number: Some(value.block_number.unwrap_or(0) as u64),
             transaction_index: Some(value.transaction_index.unwrap() as u64),
-            from: value._from.parse().unwrap(),
-            to: value._to.map(|x| x.parse().unwrap()),
+            from: value._from.parse().unwrap_or(Address::ZERO),
+            to: value._to.map(|x| x.parse().unwrap_or(Address::ZERO)),
             value: value.value.parse().unwrap(),
             gas_price: value.gas_price.map(|x| x.parse::<U256>().unwrap().to()),
             gas: value.gas.parse::<U256>().unwrap().to(),
@@ -101,10 +103,10 @@ impl From<TransactionModel> for AlloyTransaction {
             access_list: Some(Default::default()),
             max_priority_fee_per_gas: value
                 .max_priority_fee_per_gas
-                .map(|x| x.parse::<U256>().unwrap().to()),
+                .map(|x| x.parse::<U256>().unwrap_or(U256::ZERO).to()),
             max_fee_per_gas: value
                 .max_fee_per_gas
-                .map(|x| x.parse::<U256>().unwrap().to()),
+                .map(|x| x.parse::<U256>().unwrap_or(U256::ZERO).to()),
             chain_id: Some(value.chain_id as u64),
             signature,
             ..Default::default()

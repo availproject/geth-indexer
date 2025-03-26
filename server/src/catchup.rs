@@ -112,14 +112,11 @@ pub async fn process_block(
     let tasks: FuturesUnordered<_> = transactions
         .iter()
         .map(|tx| async move {
-            let tx = tx.clone();
             let is_transfer =
                 (tx.input.is_empty() || tx.input.to_hex_string() == "0x") && tx.to.is_some();
             let tx_hash = tx.hash.to_hex_string();
             if !is_transfer {
-                let provider = external_provider.clone();
-
-                if let Some(receipt) = provider
+                if let Some(receipt) = external_provider
                     .get_transaction_receipt(tx.hash)
                     .await
                     .ok()
@@ -154,7 +151,7 @@ pub async fn process_block(
         }
     }
 
-    let chain_id = chain_id.clone();
+    let chain_id = *chain_id;
     tokio::spawn(async move {
         if let Err(e) = internal_provider
             .add_txns(chain_id, transactions.len(), transactions, tx_map)

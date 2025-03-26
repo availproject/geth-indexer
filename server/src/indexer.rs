@@ -82,8 +82,8 @@ impl Indexer {
                 let mut to_remove = Vec::new();
 
                 {
-                    let providers = inactive_providers.lock().await;
-                    for (endpoint, provider) in providers.iter() {
+                    let inact_providers = inactive_providers.lock().await;
+                    for (endpoint, provider) in inact_providers.iter() {
                         let chain_id = match provider.get_chain_id().await {
                             Ok(id) => id,
                             Err(_) => {
@@ -104,9 +104,9 @@ impl Indexer {
                     }
                 }
 
-                let mut providers = inactive_providers.lock().await;
+                let mut inact_providers = inactive_providers.lock().await;
                 for key in to_remove {
-                    providers.remove(&key);
+                    inact_providers.remove(&key);
                 }
 
                 tokio::time::sleep(Duration::from_secs(120)).await;
