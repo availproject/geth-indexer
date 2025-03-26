@@ -328,14 +328,14 @@ impl InternalDataProvider {
             let mut redis_conn = self.dbc.redis.lock().await;
             let (interval, width) = if let Some(stride) = stride.stride {
                 if stride == 1 {
-                    // 1 min
-                    (1, 60) // interval: 1 sec (1 * 60s = 1 min)
+                    // 1 hr
+                    (30, 120) // interval: 30 sec (30 * 120s = 1 hr)
                 } else {
                     // 10 min
-                    (120, 5) // interval: 1 min (120 * 5s = 10 min)
+                    (10, 60) // interval: 10 sec (10 * 60s = 10 min)
                 }
             } else {
-                (900, 96) // interval: 15 min (96 * 15min = 24hr)
+                (3600, 24) // interval: 15 min (24 * 1hr = 24hr)
             };
 
             if let Some(chain_id) = identifier.chain_id {
