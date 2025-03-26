@@ -96,7 +96,7 @@ impl Indexer {
 
                         let provider = provider.clone();
                         let internal_provider = internal_provider.clone();
-
+                        tracing::info!("Inactive provider {}, is back live. Catching up", endpoint);
                         tokio::spawn(async move {
                             let _ =
                                 catch_up_blocks(None, internal_provider, provider, &chain_id).await;

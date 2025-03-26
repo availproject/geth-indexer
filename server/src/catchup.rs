@@ -172,4 +172,4 @@ pub async fn process_block(
     ))
 }
 
-const SLEEP: u64 = 250;
+const SLEEP: u64 = 500;
