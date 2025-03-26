@@ -58,13 +58,12 @@ impl InternalDataProvider {
         if let Some(tx_hash) = identifier.tx_hash.as_ref() {
             query = query.filter(transactions_schema_types::transaction_hash.eq(tx_hash));
         }
-        if let Some(tx) = tx_type.tx_type.as_ref() {
         if let Some(tpe) = tx_type.tx_type.as_ref() {
             match tpe {
                 Tx::Native | Tx::CrossChain => {
                     query = query.filter(transactions_schema_types::tx_type.eq(tpe.to_string()));
                 }
-                Tx::All => {}
+                Tx::All => {},
             };
         }
 
