@@ -1,21 +1,8 @@
-use alloy::{
-    eips::BlockNumberOrTag,
-    providers::Provider,
-    rpc::types::Block,
-};
+use alloy::{eips::BlockNumberOrTag, providers::Provider, rpc::types::Block};
 use async_std::task::sleep;
-use db::{
-    provider::InternalDataProvider,
-    ToHexString,
-    parse_logs,
-    Tx,
-};
+use db::{parse_logs, provider::InternalDataProvider, ToHexString, Tx};
 use futures::stream::{FuturesUnordered, StreamExt};
-use std::{
-    collections::BTreeMap,
-    sync::Arc,
-    time,
-};
+use std::{collections::BTreeMap, sync::Arc, time};
 use tracing::info;
 
 use crate::error::IndexerError;
@@ -97,7 +84,8 @@ pub(crate) async fn catch_up_blocks(
                         current_block.transactions.len(),
                         current_block.header.number,
                     )
-                    .await {
+                    .await
+                {
                 } else {
                     break;
                 }

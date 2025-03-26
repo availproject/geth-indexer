@@ -1,6 +1,6 @@
 use redis::RedisResult;
 
-use crate::{unix_ms_to_ist, Stride, Type, Tx};
+use crate::{unix_ms_to_ist, Stride, Tx, Type};
 
 pub fn add_block(
     chain_id: &u64,

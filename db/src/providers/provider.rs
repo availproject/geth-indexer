@@ -15,12 +15,13 @@ use crate::{
     cache::*,
     schema::{
         chains::dsl::chains as chains_schema,
-        transactions::dsl::{self as transactions_schema_types, transactions as transactions_schema},
+        transactions::dsl::{
+            self as transactions_schema_types, transactions as transactions_schema,
+        },
     },
-    Chain, ChainId, DatabaseConnections, Limit, Parts, Stride, ToHexString, TransactionModel,
-    Tx, TxAPIResponse, TxFilter, TxIdentifier, TxResponse, TxnSummary, Type, unix_ms_to_ist,
+    unix_ms_to_ist, Chain, ChainId, DatabaseConnections, Limit, Parts, Stride, ToHexString,
+    TransactionModel, Tx, TxAPIResponse, TxFilter, TxIdentifier, TxResponse, TxnSummary, Type,
 };
-
 
 #[derive(Clone)]
 pub struct InternalDataProvider {
@@ -326,9 +327,11 @@ impl InternalDataProvider {
         {
             let mut redis_conn = self.dbc.redis.lock().await;
             let (interval, width) = if let Some(stride) = stride.stride {
-                if stride == 1 { // 1 min
+                if stride == 1 {
+                    // 1 min
                     (1, 60) // interval: 1 sec (1 * 60s = 1 min)
-                } else { // 10 min
+                } else {
+                    // 10 min
                     (120, 5) // interval: 1 min (120 * 5s = 10 min)
                 }
             } else {

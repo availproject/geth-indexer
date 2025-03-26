@@ -1,5 +1,5 @@
 use alloy::{
-    providers::{RootProvider, Provider},
+    providers::{Provider, RootProvider},
     transports::http::Http,
 };
 use db::provider::InternalDataProvider;
@@ -75,12 +75,12 @@ impl Indexer {
     pub async fn poll_inactive_providers(&self) {
         let inactive_providers = Arc::new(Mutex::new(self.inactive_providers.clone()));
         let internal_provider = self.internal_provider.clone();
-    
+
         tokio::spawn(async move {
             loop {
                 let internal_provider = internal_provider.clone();
                 let mut to_remove = Vec::new();
-    
+
                 {
                     let providers = inactive_providers.lock().await;
                     for (endpoint, provider) in providers.iter() {
@@ -91,34 +91,28 @@ impl Indexer {
                                 continue;
                             }
                         };
-    
+
                         to_remove.push(endpoint.clone());
-    
+
                         let provider = provider.clone();
                         let internal_provider = internal_provider.clone();
-    
+
                         tokio::spawn(async move {
-                            let _ = catch_up_blocks(
-                                None,
-                                internal_provider,
-                                provider,
-                                &chain_id,
-                            )
-                            .await;
+                            let _ =
+                                catch_up_blocks(None, internal_provider, provider, &chain_id).await;
                         });
                     }
                 }
-    
+
                 let mut providers = inactive_providers.lock().await;
                 for key in to_remove {
                     providers.remove(&key);
                 }
-    
+
                 tokio::time::sleep(Duration::from_secs(120)).await;
             }
         });
     }
-    
 }
 
 pub type ExternalProvider = RootProvider<Http<Client>>;

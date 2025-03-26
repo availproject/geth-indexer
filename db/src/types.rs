@@ -1,7 +1,9 @@
 use std::fmt;
 
 use alloy::{
-    primitives::{hex::ToHexExt, Address, Bloom, Bytes, FixedBytes, Log as PrimitiveLog, U256, U64},
+    primitives::{
+        hex::ToHexExt, Address, Bloom, Bytes, FixedBytes, Log as PrimitiveLog, U256, U64,
+    },
     rpc::types::{eth::Transaction, TransactionReceipt},
     signers::k256::ecdsa::SigningKey,
     sol,
@@ -10,7 +12,6 @@ use alloy::{
 
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
-
 
 #[derive(Clone)]
 pub enum Metric {
