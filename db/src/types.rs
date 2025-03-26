@@ -188,7 +188,8 @@ extract! {
         pub sender: Option<String>,
         pub status: Option<i16>,
         pub recipient: Option<String>,
-        pub chain_id: Option<u64>
+        pub chain_id: Option<u64>,
+        pub tx_type: Option<String>
     }
 }
 

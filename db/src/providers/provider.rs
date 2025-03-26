@@ -59,7 +59,13 @@ impl InternalDataProvider {
             query = query.filter(transactions_schema_types::transaction_hash.eq(tx_hash));
         }
         if let Some(tx) = tx_type.tx_type.as_ref() {
-            query = query.filter(transactions_schema_types::tx_type.eq(tx.to_string()));
+        if let Some(tpe) = tx_type.tx_type.as_ref() {
+            match tpe {
+                Tx::Native | Tx::CrossChain => {
+                    query = query.filter(transactions_schema_types::tx_type.eq(tpe.to_string()));
+                }
+                Tx::All => {}
+            };
         }
 
         let result: Vec<TransactionModel> = query
@@ -253,7 +259,6 @@ impl InternalDataProvider {
             let mut redis_conn = self.dbc.redis.lock().await;
             let tps = if let Some(chain_id) = identifier.chain_id {
                 let latest_timestamp = get_latest_timestamp(&chain_id, &mut redis_conn)?;
-
                 get_successful_xfers_in_range(
                     &chain_id,
                     86400,
@@ -265,7 +270,6 @@ impl InternalDataProvider {
                 let now_duration = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .expect("SystemTime before UNIX EPOCH!");
-
                 get_all_chains_success_xfers_in_range(
                     86400,
                     now_duration.as_secs() as i64,
