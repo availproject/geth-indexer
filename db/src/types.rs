@@ -11,7 +11,7 @@ use alloy::{
 };
 
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Clone)]
 pub enum Metric {
@@ -110,15 +110,45 @@ pub struct Stride {
     pub stride: Option<u64>,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Type {
     pub tx_type: Option<Tx>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, Eq, PartialEq)]
 pub enum Tx {
     Native,
     CrossChain,
+}
+
+impl<'de> Deserialize<'de> for Tx {
+    fn deserialize<D>(deserializer: D) -> Result<Tx, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct TxVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for TxVisitor {
+            type Value = Tx;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str(r#""native" or "cross_chain""#)
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Tx, E>
+            where
+                E: serde::de::Error,
+            {
+                match v.to_lowercase().as_str() {
+                    "native" => Ok(Tx::Native),
+                    "cross_chain" | "crosschain" => Ok(Tx::CrossChain),
+                    _ => Err(E::custom(format!("invalid tx_type: {}", v))),
+                }
+            }
+        }
+
+        deserializer.deserialize_str(TxVisitor)
+    }
 }
 
 impl std::str::FromStr for Tx {
