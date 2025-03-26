@@ -141,7 +141,7 @@ pub fn get_live_tps(
             .arg("WITHSCORES")
             .query(conn)?;
         raw
-    } else {
+    } else if let Some(Tx::All) = tx_type.tx_type {
         let live_tps_key = format!("chain:{}:live_tps", chain_id);
         let raw: Vec<String> = redis::cmd("ZRANGEBYSCORE")
             .arg(&live_tps_key)
@@ -150,6 +150,8 @@ pub fn get_live_tps(
             .arg("WITHSCORES")
             .query(conn)?;
         raw
+    } else {
+        return Ok(Vec::new());
     };
 
     let mut pairs: Vec<(String, f64)> = Vec::new();
@@ -229,8 +231,10 @@ pub fn get_latest_tps(
         format!("chain:{}:xtps", chain_id)
     } else if let Some(Tx::Native) = tx_type.tx_type {
         format!("chain:{}:ntps", chain_id)
-    } else {
+    } else if let Some(Tx::All) = tx_type.tx_type {
         format!("chain:{}:tps", chain_id)
+    } else {
+        return Ok(0);
     };
 
     let tps = redis::cmd("GET").arg(&tps_key).query::<u64>(conn)?;
@@ -263,7 +267,7 @@ pub fn get_successful_xfers_in_range(
             .arg("WITHSCORES")
             .query(conn)?;
         raw
-    } else {
+    } else if let Some(Tx::All) = tx_type.tx_type {
         let successful_key = format!("chain:{}:successful", chain_id);
         let raw: Vec<String> = redis::cmd("ZRANGEBYSCORE")
             .arg(&successful_key)
@@ -272,6 +276,8 @@ pub fn get_successful_xfers_in_range(
             .arg("WITHSCORES")
             .query(conn)?;
         raw
+    } else {
+        return Ok(0);
     };
 
     let mut pairs: Vec<(String, f64)> = Vec::new();

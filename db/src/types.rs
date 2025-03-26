@@ -119,6 +119,7 @@ pub struct Type {
 pub enum Tx {
     Native,
     CrossChain,
+    All,
 }
 
 impl<'de> Deserialize<'de> for Tx {
@@ -132,7 +133,7 @@ impl<'de> Deserialize<'de> for Tx {
             type Value = Tx;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str(r#""native" or "cross_chain""#)
+                formatter.write_str(r#""native" or "cross_chain" or "all""#)
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Tx, E>
@@ -142,6 +143,7 @@ impl<'de> Deserialize<'de> for Tx {
                 match v.to_lowercase().as_str() {
                     "native" => Ok(Tx::Native),
                     "cross_chain" | "crosschain" => Ok(Tx::CrossChain),
+                    "all" => Ok(Tx::All),
                     _ => Err(E::custom(format!("invalid tx_type: {}", v))),
                 }
             }
@@ -158,6 +160,7 @@ impl std::str::FromStr for Tx {
         match input {
             "native" => Ok(Tx::Native),
             "cross_chain" => Ok(Tx::CrossChain),
+            "all" => Ok(Tx::All),
             _ => Ok(Tx::Native),
         }
     }
@@ -168,6 +171,7 @@ impl fmt::Display for Tx {
         let s = match self {
             Tx::Native => "native",
             Tx::CrossChain => "cross_chain",
+            Tx::All => "all",
         };
         write!(f, "{}", s)
     }
