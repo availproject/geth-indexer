@@ -279,89 +279,89 @@ pub fn parse_logs(receipt: &TransactionReceipt) -> (bool, u32) {
     return (false, 0);
 }
 
-pub trait ToHexString {
+pub trait ConvertToHex {
     fn to_hex_string(&self) -> String;
 }
 
-impl ToHexString for &[u8] {
+impl ConvertToHex for &[u8] {
     fn to_hex_string(&self) -> String {
-        to_hex_string_internal(self)
+        internal(self)
     }
 }
 
-impl ToHexString for Address {
+impl ConvertToHex for Address {
     fn to_hex_string(&self) -> String {
-        to_hex_string_internal(self.as_slice())
+        internal(self.as_slice())
     }
 }
 
-impl<const N: usize> ToHexString for FixedBytes<N> {
+impl<const N: usize> ConvertToHex for FixedBytes<N> {
     fn to_hex_string(&self) -> String {
-        to_hex_string_internal(self.as_slice())
+        internal(self.as_slice())
     }
 }
 
-impl ToHexString for U64 {
+impl ConvertToHex for U64 {
     fn to_hex_string(&self) -> String {
-        to_hex_string_internal(self.to_be_bytes::<8>().as_slice())
+        internal(self.to_be_bytes::<8>().as_slice())
     }
 }
 
-impl ToHexString for Transaction {
+impl ConvertToHex for Transaction {
     fn to_hex_string(&self) -> String {
         self.hash.to_hex_string()
     }
 }
 
-impl ToHexString for U256 {
+impl ConvertToHex for U256 {
     fn to_hex_string(&self) -> String {
-        to_hex_string_internal(self.to_be_bytes::<32>().as_slice())
+        internal(self.to_be_bytes::<32>().as_slice())
     }
 }
 
-impl ToHexString for u8 {
-    fn to_hex_string(&self) -> String {
-        U256::from(*self).to_hex_string()
-    }
-}
-
-impl ToHexString for u64 {
+impl ConvertToHex for u8 {
     fn to_hex_string(&self) -> String {
         U256::from(*self).to_hex_string()
     }
 }
 
-impl ToHexString for u128 {
+impl ConvertToHex for u64 {
     fn to_hex_string(&self) -> String {
         U256::from(*self).to_hex_string()
     }
 }
 
-impl ToHexString for bool {
+impl ConvertToHex for u128 {
     fn to_hex_string(&self) -> String {
         U256::from(*self).to_hex_string()
     }
 }
 
-impl ToHexString for Bytes {
+impl ConvertToHex for bool {
     fn to_hex_string(&self) -> String {
-        to_hex_string_internal(&self.0)
+        U256::from(*self).to_hex_string()
     }
 }
 
-impl ToHexString for Bloom {
+impl ConvertToHex for Bytes {
+    fn to_hex_string(&self) -> String {
+        internal(&self.0)
+    }
+}
+
+impl ConvertToHex for Bloom {
     fn to_hex_string(&self) -> String {
         self.as_slice().to_hex_string()
     }
 }
 
-impl ToHexString for SigningKey {
+impl ConvertToHex for SigningKey {
     fn to_hex_string(&self) -> String {
         self.to_bytes().encode_hex_with_prefix()
     }
 }
 
-fn to_hex_string_internal(bytes: &[u8]) -> String {
+fn internal(bytes: &[u8]) -> String {
     bytes.encode_hex_with_prefix()
 }
 

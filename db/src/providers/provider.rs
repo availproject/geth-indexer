@@ -19,8 +19,8 @@ use crate::{
             self as transactions_schema_types, transactions as transactions_schema,
         },
     },
-    unix_ms_to_ist, Chain, ChainId, DatabaseConnections, Limit, Parts, Stride, ToHexString,
-    TransactionModel, Tx, TxAPIResponse, TxFilter, TxIdentifier, TxResponse, TxnSummary, Type,
+    unix_ms_to_ist, Chain, ChainId, ConvertToHex, DatabaseConnections, Limit, Parts, Stride, Tx,
+    TxAPIResponse, TxFilter, TxIdentifier, TxModel, TxResponse, TxnSummary, Type,
 };
 
 #[derive(Clone)]
@@ -63,14 +63,14 @@ impl InternalDataProvider {
                 Tx::Native | Tx::CrossChain => {
                     query = query.filter(transactions_schema_types::tx_type.eq(tpe.to_string()));
                 }
-                Tx::All => {},
+                Tx::All => {}
             };
         }
 
-        let result: Vec<TransactionModel> = query
+        let result: Vec<TxModel> = query
             .limit(limit.limit.unwrap_or(10) as i64)
             .offset((identifier.page_idx.unwrap_or(0) * limit.limit.unwrap_or(10)) as i64)
-            .select(TransactionModel::as_select())
+            .select(TxModel::as_select())
             .load(&mut conn)
             .await
             .map_err(|_| std::io::ErrorKind::ConnectionAborted)?;
@@ -106,7 +106,7 @@ impl InternalDataProvider {
         transactions: Vec<AlloyTx>,
         tx_map: BTreeMap<String, Tx>,
     ) -> Result<(), std::io::Error> {
-        let txns: Vec<TransactionModel> = transactions
+        let txns: Vec<TxModel> = transactions
             .iter()
             .take(10)
             .cloned()
@@ -116,7 +116,7 @@ impl InternalDataProvider {
                 let tx_type = tx_map
                     .get(&transaction.hash.to_hex_string())
                     .unwrap_or(&Tx::Native);
-                TransactionModel::from(chain_id, &transaction, tx_type)
+                TxModel::from(chain_id, &transaction, tx_type)
             })
             .collect();
 

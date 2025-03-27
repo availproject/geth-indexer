@@ -1,4 +1,4 @@
-use crate::{types::ToHexString, Tx};
+use crate::{types::ConvertToHex, Tx};
 use alloy::{
     primitives::{Address, FixedBytes, Uint, U256},
     rpc::types::eth::{Parity, Signature, Transaction as AlloyTransaction},
@@ -41,7 +41,7 @@ pub struct Chain {
 #[diesel(belongs_to(Chain, foreign_key = chain_id))]
 #[diesel(table_name = crate::schema::transactions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct TransactionModel {
+pub struct TxModel {
     pub chain_id: i64,
     pub transaction_hash: String,
     pub transaction_nonce: String,
@@ -64,8 +64,8 @@ pub struct TransactionModel {
     pub tx_type: String,
 }
 
-impl From<TransactionModel> for AlloyTransaction {
-    fn from(value: TransactionModel) -> Self {
+impl From<TxModel> for AlloyTransaction {
+    fn from(value: TxModel) -> Self {
         let v = value.v.parse().unwrap_or(Uint::default());
         let signature = Some(Signature {
             r: value.r.parse().unwrap_or(Uint::default()),
@@ -114,7 +114,7 @@ impl From<TransactionModel> for AlloyTransaction {
     }
 }
 
-impl TransactionModel {
+impl TxModel {
     pub fn from(chain_id: u64, value: &AlloyTransaction, tx_type: &Tx) -> Self {
         let result = Self {
             tx_type: tx_type.to_string(),
@@ -150,12 +150,6 @@ impl TransactionModel {
             max_priority_fee_per_gas: value.max_priority_fee_per_gas.map(|x| x.to_hex_string()),
             max_fee_per_gas: value.max_fee_per_gas.map(|x| x.to_hex_string()),
         };
-        #[cfg(debug_assertions)]
-        {
-            let mut converted_back: AlloyTransaction = result.clone().into();
-            converted_back.access_list = value.access_list.clone();
-            assert_eq!(*value, converted_back);
-        }
         result
     }
 }

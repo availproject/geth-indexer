@@ -1,6 +1,6 @@
 use alloy::{eips::BlockNumberOrTag, providers::Provider, rpc::types::Block};
 use async_std::task::sleep;
-use db::{parse_logs, provider::InternalDataProvider, ToHexString, Tx};
+use db::{parse_logs, provider::InternalDataProvider, ConvertToHex, Tx};
 use futures::stream::{FuturesUnordered, StreamExt};
 use std::{collections::BTreeMap, sync::Arc, time};
 use tracing::info;
@@ -43,6 +43,7 @@ pub(crate) async fn catch_up_blocks(
             validator_max_height = std::cmp::max(validator_max_height, current_block.header.number);
             if indexer_block_height == 0 || indexer_block_height != validator_max_height {
                 indexer_block_height = current_block.header.number;
+
                 let (total_xfers, failed_xfers, total_native_transfers, total_x_chain_transfers) =
                     match process_block(
                         &current_block,

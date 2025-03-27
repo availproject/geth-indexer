@@ -72,14 +72,12 @@ impl DatabaseConnections {
         let redis_host_name: String =
             env::var("REDIS_HOSTNAME").unwrap_or("localhost:6379".to_string());
         let redis_password = env::var("REDIS_PASSWORD").unwrap_or("redis".to_string());
-
         let uri_scheme = match env::var("IS_TLS") {
             Ok(_) => "rediss",
             Err(_) => "redis",
         };
 
         let redis_conn_url = format!("{}://:{}@{}", uri_scheme, redis_password, redis_host_name);
-
         redis::Client::open(redis_conn_url)
             .expect("Invalid connection URL")
             .get_connection()
