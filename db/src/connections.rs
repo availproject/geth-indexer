@@ -47,25 +47,19 @@ impl DatabaseConnections {
         ))
     }
 
-    pub fn postgres_pool(db_url: String) -> Pool<AsyncPgConnection> {
-        let config = AsyncDieselConnectionManager::new(db_url);
+    async fn init_postgres() -> Result<Pool<AsyncPgConnection>, std::io::Error> {
+        let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let config_db_url = db_url.clone();
+        tokio::task::spawn_blocking(move || Self::run_migrations(&db_url.clone())).await??;
+        let config = AsyncDieselConnectionManager::new(config_db_url);
         let max_pool_size = env::var("MAX_POOL_SIZE")
             .unwrap_or("8".to_string())
             .parse()
             .unwrap();
-        Pool::builder(config)
+        Ok(Pool::builder(config)
             .max_size(max_pool_size)
             .build()
-            .expect("Failed to create pool")
-    }
-
-    async fn init_postgres() -> Result<Pool<AsyncPgConnection>, std::io::Error> {
-        let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-        let db_url_pool = db_url.clone();
-        tokio::task::spawn_blocking(move || Self::run_migrations(&db_url.clone())).await??;
-        let pool = Self::postgres_pool(db_url_pool);
-
-        Ok(pool)
+            .expect("Failed to build pool"))
     }
 
     pub fn init_redis() -> redis::Connection {

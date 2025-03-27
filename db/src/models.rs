@@ -1,7 +1,7 @@
 use crate::{types::ConvertToHex, Tx};
 use alloy::{
     primitives::{Address, FixedBytes, Uint, U256},
-    rpc::types::eth::{Parity, Signature, Transaction as AlloyTransaction},
+    rpc::types::eth::{Parity, Signature, Transaction as AlloyTx},
 };
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -64,7 +64,7 @@ pub struct TxModel {
     pub tx_type: String,
 }
 
-impl From<TxModel> for AlloyTransaction {
+impl From<TxModel> for AlloyTx {
     fn from(value: TxModel) -> Self {
         let v = value.v.parse().unwrap_or(Uint::default());
         let signature = Some(Signature {
@@ -115,7 +115,7 @@ impl From<TxModel> for AlloyTransaction {
 }
 
 impl TxModel {
-    pub fn from(chain_id: u64, value: &AlloyTransaction, tx_type: &Tx) -> Self {
+    pub fn from(chain_id: u64, value: &AlloyTx, tx_type: &Tx) -> Self {
         let result = Self {
             tx_type: tx_type.to_string(),
             chain_id: chain_id.try_into().unwrap(),

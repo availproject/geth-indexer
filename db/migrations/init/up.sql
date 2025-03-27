@@ -48,8 +48,6 @@ CREATE TABLE transactions (
     PRIMARY KEY (chain_id, transaction_hash)
 );
 
-SELECT diesel_manage_updated_at('blocks');
-
 ALTER TABLE chains 
 ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
 ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL;
