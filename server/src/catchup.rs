@@ -41,7 +41,6 @@ pub(crate) async fn catch_up_blocks(
             }
             let current_block = current_block.unwrap();
             validator_max_height = std::cmp::max(validator_max_height, current_block.header.number);
-
             if indexer_block_height == 0 || indexer_block_height != validator_max_height {
                 indexer_block_height = current_block.header.number;
 
@@ -93,13 +92,7 @@ pub(crate) async fn catch_up_blocks(
                 }
             }
 
-            let gap = validator_max_height.saturating_sub(indexer_block_height);
-            query_param = if gap > STRIDE {
-                BlockNumberOrTag::Number(indexer_block_height.saturating_add(gap - 1))
-            } else {
-                BlockNumberOrTag::Number(indexer_block_height.saturating_add(1))
-            };
-
+            query_param = BlockNumberOrTag::Number(indexer_block_height.saturating_add(1));
             sleep(time::Duration::from_millis(SLEEP)).await;
         }
     }
@@ -178,4 +171,3 @@ pub async fn process_block(
 }
 
 const SLEEP: u64 = 500;
-const STRIDE: u64 = 10;
