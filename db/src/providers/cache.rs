@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use redis::RedisResult;
 
 use crate::{unix_ms_to_ist, Stride, Tx, Type};
@@ -114,7 +116,10 @@ pub fn get_live_tps(
     tx_type: Type,
     conn: &mut redis::Connection,
 ) -> RedisResult<Vec<(u64, String)>> {
-    let latest_timestamp = get_latest_timestamp(chain_id, conn)?;
+    let latest_timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("SystemTime before UNIX EPOCH!")
+        .as_secs() as i64;
 
     let mut stride = stride.stride.unwrap_or(1);
     if stride == 1 {

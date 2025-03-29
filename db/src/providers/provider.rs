@@ -63,7 +63,7 @@ impl InternalDataProvider {
                 Tx::Native | Tx::CrossChain => {
                     query = query.filter(transactions_schema_types::tx_type.eq(tpe.to_string()));
                 }
-                Tx::All => {},
+                Tx::All => {}
             };
         }
 
@@ -255,9 +255,12 @@ impl InternalDataProvider {
         tx_type: Type,
     ) -> RedisResult<u64> {
         let tps = {
+            let latest_timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("SystemTime before UNIX EPOCH!")
+                .as_secs() as i64;
             let mut redis_conn = self.dbc.redis.lock().await;
             let tps = if let Some(chain_id) = identifier.chain_id {
-                let latest_timestamp = get_latest_timestamp(&chain_id, &mut redis_conn)?;
                 get_successful_xfers_in_range(
                     &chain_id,
                     86400,
@@ -266,12 +269,9 @@ impl InternalDataProvider {
                     &mut redis_conn,
                 )?
             } else {
-                let now_duration = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("SystemTime before UNIX EPOCH!");
                 get_all_chains_success_xfers_in_range(
                     86400,
-                    now_duration.as_secs() as i64,
+                    latest_timestamp,
                     tx_type,
                     &mut redis_conn,
                 )?
@@ -290,6 +290,10 @@ impl InternalDataProvider {
     ) -> RedisResult<u64> {
         let xfers = {
             let mut redis_conn = self.dbc.redis.lock().await;
+            let latest_timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("SystemTime before UNIX EPOCH!")
+                .as_secs() as i64;
             let xfers = if let Some(chain_id) = identifier.chain_id {
                 let latest_timestamp = get_latest_timestamp(&chain_id, &mut redis_conn)?;
                 get_successful_xfers_in_range(
@@ -301,12 +305,9 @@ impl InternalDataProvider {
                 )
                 .unwrap_or(0)
             } else {
-                let now_duration = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("SystemTime before UNIX EPOCH!");
                 get_all_chains_success_xfers_in_range(
                     86400,
-                    now_duration.as_secs() as i64,
+                    latest_timestamp,
                     tx_type,
                     &mut redis_conn,
                 )
@@ -329,6 +330,10 @@ impl InternalDataProvider {
 
         {
             let mut redis_conn = self.dbc.redis.lock().await;
+            let latest_timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("SystemTime before UNIX EPOCH!")
+                .as_secs() as i64;
             let (interval, width) = if let Some(stride) = stride.stride {
                 if stride == 1 {
                     // 1 hr
@@ -342,8 +347,6 @@ impl InternalDataProvider {
             };
 
             if let Some(chain_id) = identifier.chain_id {
-                let latest_timestamp = get_latest_timestamp(&chain_id, &mut redis_conn)?;
-
                 for i in 1..width {
                     // 96 times, so iterate till last 24 hr data (96 * 15min = 24hr)
                     let success = get_successful_xfers_in_range(
@@ -362,10 +365,6 @@ impl InternalDataProvider {
                     })
                 }
             } else {
-                let now_duration = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("SystemTime before UNIX EPOCH!");
-                let latest_timestamp = now_duration.as_secs() as i64;
                 for i in 1..width {
                     let success = get_all_chains_success_xfers_in_range(
                         i * interval,
