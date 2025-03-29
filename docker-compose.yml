@@ -44,7 +44,7 @@ services:
       - indexer_network
   redis:
     image: "redis:alpine"
-    command: redis-server --save "86400 1" --appendonly no --requirepass redis --maxmemory 500mb --maxmemory-policy volatile-ttl
+    command: redis-server --save "86400 1" --appendonly yes --requirepass redis --maxmemory 500mb --maxmemory-policy volatile-ttl
     environment:
       - REDIS_PASSWORD=redis
     ports:
