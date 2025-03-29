@@ -345,7 +345,7 @@ impl InternalDataProvider {
             } else {
                 (3600, 24) // interval: 15 min (24 * 1hr = 24hr)
             };
-            let mut running_sum = 0;
+
             if let Some(chain_id) = identifier.chain_id {
                 for i in 1..width {
                     // 96 times, so iterate till last 24 hr data (96 * 15min = 24hr)
@@ -358,11 +358,9 @@ impl InternalDataProvider {
                     )
                     .unwrap_or(0);
 
-                    running_sum += success;
-
                     tx_response.push(TxResponse {
-                        successful_txns: running_sum as u64,
-                        total_txns: running_sum as u64,
+                        successful_txns: success as u64,
+                        total_txns: success as u64,
                         timestamp: unix_ms_to_ist(latest_timestamp.saturating_sub(i * interval)),
                     })
                 }
@@ -376,11 +374,9 @@ impl InternalDataProvider {
                     )
                     .unwrap_or(0);
 
-                    running_sum += success;
-
                     tx_response.push(TxResponse {
-                        successful_txns: running_sum as u64,
-                        total_txns: running_sum as u64,
+                        successful_txns: success as u64,
+                        total_txns: success as u64,
                         timestamp: unix_ms_to_ist(latest_timestamp.saturating_sub(i * interval)),
                     })
                 }
