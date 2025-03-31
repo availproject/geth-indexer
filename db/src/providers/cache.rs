@@ -1,4 +1,7 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    collections::HashSet,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use redis::RedisResult;
 
@@ -115,7 +118,7 @@ pub fn get_live_tps(
     stride: Stride,
     tx_type: Type,
     conn: &mut redis::Connection,
-) -> RedisResult<Vec<(u64, String)>> {
+) -> RedisResult<Vec<Entry>> {
     let latest_timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("SystemTime before UNIX EPOCH!")
@@ -169,16 +172,16 @@ pub fn get_live_tps(
         }
     }
 
-    let mut tps_pairs: Vec<(u64, String)> = Vec::new();
+    let mut tps_pairs: Vec<Entry> = Vec::new();
     for (member_str, score) in &pairs {
         let timestamp = *score as i64;
         let ist_day = unix_ms_to_ist(timestamp);
         if let Ok(value) = member_str.parse::<u64>() {
-            tps_pairs.push((value, ist_day));
+            tps_pairs.push((value, timestamp, ist_day));
         }
     }
 
-    tps_pairs.sort_by(|a, b| a.1.cmp(&b.1));
+    tps_pairs.sort_by(|a, b| a.2.cmp(&b.2));
 
     Ok(tps_pairs)
 }
@@ -187,20 +190,13 @@ pub fn get_all_chains_live_tps_in_range(
     stride: Stride,
     tx_type: Type,
     conn: &mut redis::Connection,
-) -> redis::RedisResult<Vec<(u64, String)>> {
+) -> redis::RedisResult<Vec<Entry>> {
     let chain_ids: Vec<u64> = redis::cmd("SMEMBERS").arg("chains").query(conn)?;
-    let mut all_chains: Vec<Vec<(u64, String)>> = Vec::new();
-    let mut max_size = 0;
-    let mut longest_chain: Vec<(u64, String)> = Vec::new();
+    let mut all_chains: Vec<Vec<Entry>> = Vec::new();
 
     for chain_id in chain_ids {
         match get_live_tps(&chain_id, stride.clone(), tx_type.clone(), conn) {
             Ok(chain_live_tps) => {
-                if chain_live_tps.len() > max_size {
-                    max_size = chain_live_tps.len();
-                    longest_chain = chain_live_tps.clone();
-                }
-
                 all_chains.push(chain_live_tps);
             }
             Err(e) => {
@@ -209,22 +205,7 @@ pub fn get_all_chains_live_tps_in_range(
         }
     }
 
-    let mut final_chain_live_tps = vec![(0, String::new()); max_size];
-
-    for chain in &all_chains {
-        let offset = max_size - chain.len();
-        for (i, &(val, _)) in chain.iter().enumerate() {
-            final_chain_live_tps[offset + i].0 += val;
-        }
-    }
-
-    for i in 0..max_size {
-        if let Some((_, ref ts)) = longest_chain.get(i) {
-            final_chain_live_tps[i].1 = ts.clone();
-        }
-    }
-
-    Ok(final_chain_live_tps)
+    Ok(accumulate_along_longest_chain(all_chains))
 }
 
 pub fn get_latest_tps(
@@ -339,3 +320,53 @@ pub fn get_all_chains_tps_in_range(
 
     Ok(total_sum)
 }
+
+pub fn accumulate_along_longest_chain(chains: Vec<Vec<Entry>>) -> Vec<Entry> {
+    if chains.is_empty() {
+        return vec![];
+    }
+    let base_idx = chains
+        .iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| {
+            let len_cmp = a.len().cmp(&b.len());
+            if len_cmp == std::cmp::Ordering::Equal {
+                let a_ts = a.first().map(|x| x.1).unwrap_or(i64::MAX);
+                let b_ts = b.first().map(|x| x.1).unwrap_or(i64::MAX);
+                b_ts.cmp(&a_ts)
+            } else {
+                len_cmp
+            }
+        })
+        .map(|(idx, _)| idx)
+        .unwrap_or(0);
+    let base_chain = &chains[base_idx];
+    let mut used_indices: Vec<HashSet<usize>> = chains.iter().map(|_| HashSet::new()).collect();
+    let mut result = Vec::with_capacity(base_chain.len());
+    for &(base_tps, base_ts, ref stringified_base_timestamp) in base_chain {
+        let mut total_tps = base_tps;
+        for (chain_idx, chain) in chains.iter().enumerate() {
+            if chain_idx == base_idx {
+                continue;
+            }
+            let mut closest: Option<(usize, i64)> = None;
+            for (i, &(_, ts, _)) in chain.iter().enumerate() {
+                if used_indices[chain_idx].contains(&i) {
+                    continue;
+                }
+                let diff = (ts - base_ts).abs();
+                if closest.map_or(true, |(_, best_diff)| diff < best_diff) {
+                    closest = Some((i, diff));
+                }
+            }
+            if let Some((i, _)) = closest {
+                used_indices[chain_idx].insert(i);
+                total_tps += chain[i].0;
+            }
+        }
+        result.push((total_tps, base_ts, stringified_base_timestamp.clone()));
+    }
+    result
+}
+
+type Entry = (u64, i64, String);

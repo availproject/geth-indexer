@@ -232,7 +232,12 @@ impl InternalDataProvider {
             }
         };
 
-        Ok(tps_with_timestamps)
+        let filtered: Vec<(u64, String)> = tps_with_timestamps
+            .into_iter()
+            .map(|(tps, _, meta)| (tps, meta))
+            .collect();
+
+        Ok(filtered)
     }
 
     pub async fn current_tps(&self, identifier: ChainId, tx_type: Type) -> RedisResult<u64> {
